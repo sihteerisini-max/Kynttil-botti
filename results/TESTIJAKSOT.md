@@ -6,7 +6,7 @@ käytetä myöhempien versioiden hyvyyden todisteena.
 | Jakso | Aika (UTC) | Markkinat | Käyttö |
 |---|---|---|---|
 | **A** | 2026-09-22 18:43 – 2026-09-29 18:43 | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | v1:n ensimmäinen historiatesti. **Katsottu** – ei enää puolueeton millekään versiolle. |
-| B | alkaa 2026-09-29 18:43 → | valitaan testin alussa | varattu v2:n (ja vertailuna v1:n) arviointiin |
+| **B** | alkaa v1.1- ja v2-tilien todellisesta käynnistyshetkestä (loki: `JAKSO B – tilien todellinen aloitushetki`) → 4 viikkoa | 5 vaihdetuinta PF-perpetualia käynnistyshetkellä | v1.1 vs v2 live-paperivertailu. Säännöt lukittu 29.9.2026 (`docs/SAANNOT_v2.md`). **Kirjaa alkuhetki tähän käynnistyksen jälkeen.** |
 
 ## Jakso A – v1 (ajettu 29.9.2026, Jessen koneella)
 

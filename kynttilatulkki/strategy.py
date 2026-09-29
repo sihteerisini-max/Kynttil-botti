@@ -5,6 +5,7 @@ avaimella RULESETS-sanakirjaan + oma dokumentti docs/SAANNOT_vN.md.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 from typing import Sequence
 
@@ -42,6 +43,9 @@ class Ruleset:
     max_consecutive_losses: int = 4
     loss_streak_pause_min: int = 60
     max_drawdown: float = 0.10
+    # --- marginaali (vain korjattu malli) ---
+    max_leverage_cap: float = 10.0      # Kraken EEA: enintään 10x -> alkumarginaali vähintään 10 %
+    margin_limit: float = 0.5           # käytetty alkumarginaali yhteensä ≤ 50 % pääomasta
     cost_model: str = "v1"              # "v1" = alkuperäinen arvio, "korjattu" = estimate_costs()
     notes: str = ""
 
@@ -59,9 +63,9 @@ class CostEstimate:
     entry_friction: float    # avauksen spread + liukuma (sisältyy jo entry_fill-hintaan)
     exit_friction: float     # stop-sulun spread + stop-liukuma
     fees: float              # taker-palkkio avauksesta ja stop-sulusta
-    funding: float           # varovainen arvio koko maksimipitoajalle
-    total_cost: float        # kaikki kulut = entry + exit + palkkiot + funding
-    loss_at_stop: float      # kokonaistappio stopissa = R + exit_friction + fees + funding
+    funding_reserve: float   # funding-VARAUS koko maksimipitoajalle (arvio, ei toteutunut funding)
+    stop_cost_estimate: float  # C = stop-skenaarion kustannusarvio = entry + exit + palkkiot + funding-varaus
+    loss_at_stop: float      # L = kokonaistappio stopissa mallin oletuksilla = R + exit + palkkiot + varaus
 
 
 def estimate_costs(r: "Ruleset", side: str, ref_price: float, stop: float, half_spread: float) -> CostEstimate:
@@ -75,6 +79,53 @@ def estimate_costs(r: "Ruleset", side: str, ref_price: float, stop: float, half_
     R = abs(entry - stop)
     return CostEstimate(entry, stop_fill, R, ef, xf, fees, funding,
                         ef + xf + fees + funding, R + xf + fees + funding)
+
+
+@dataclass(frozen=True)
+class DefaultSpec:
+    """Käytetään vain testeissä/demossa, kun oikeita sopimustietoja ei anneta."""
+    qty_step: float = 1e-8
+    max_position: float = 1e18
+
+    def initial_margin(self, notional: float) -> float:
+        return 0.10
+
+
+@dataclass(frozen=True)
+class Sizing:
+    qty: float
+    notional: float
+    initial_margin_rate: float
+    margin: float
+    risk_budget: float          # q × L (≤ tavoitebudjetti pyöristyksen ja rajojen vuoksi)
+    binding: str                # mikä raja määräsi koon
+
+
+def size_position(r: "Ruleset", equity: float, loss_at_stop: float, entry: float, spec,
+                  open_notional: float, open_margin: float) -> Sizing:
+    """Positiokoko korjatussa mallissa. Järjestys:
+    1) q = 0,5 % pääomasta / L
+    2) rajat: nimellisarvo/positio ≤ 3 × pääoma, avoin nimellisarvo yhteensä ≤ 5 × pääoma,
+       käytetty alkumarginaali yhteensä ≤ 50 % pääomasta, Krakenin maxPositionSize
+    3) pyöristys ALASPÄIN sallittuun kokoaskeleeseen; jos alle yhden askeleen -> 0
+    Alkumarginaali = max(Krakenin porrastettu alkumarginaali, 1 / 10x)."""
+    cands = {
+        "riskibudjetti": equity * r.risk_per_trade / loss_at_stop,
+        "nimellisarvo/positio": r.max_notional_per_pos * equity / entry,
+        "nimellisarvo yhteensä": max(0.0, r.max_notional_total * equity - open_notional) / entry,
+        "Krakenin maksimikoko": spec.max_position,
+    }
+    q0 = min(cands.values())
+    im = max(spec.initial_margin(q0 * entry), 1 / r.max_leverage_cap)
+    cands["marginaali"] = max(0.0, r.margin_limit * equity - open_margin) / (entry * im)
+    binding = min(cands, key=cands.get)
+    q = cands[binding]
+    step = spec.qty_step
+    digits = max(0, -int(math.floor(math.log10(step)))) if step < 1 else 0
+    q = round(math.floor(q / step + 1e-9) * step, digits)
+    if q < step:
+        q = 0.0
+    return Sizing(q, q * entry, im, q * entry * im, q * loss_at_stop, binding)
 
 
 _V1 = Ruleset(version="v1", min_score=2, min_volume_ratio=1.2, require_context=True,

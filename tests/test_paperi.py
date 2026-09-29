@@ -203,37 +203,138 @@ if __name__ == "__main__":
 class TestKorjattuKulumalli(unittest.TestCase):
     R11 = RULESETS["v1.1"]
 
-    def test_kaava(self):
+    def test_kaava_long(self):
         from kynttilatulkki.strategy import estimate_costs
         ce = estimate_costs(self.R11, "long", 100.0, 99.0, HS)
         self.assertAlmostEqual(ce.entry_fill, 100 * (1 + HS + 0.0002))
         self.assertAlmostEqual(ce.stop_fill, 99 * (1 - HS - 0.0005))
         self.assertAlmostEqual(ce.price_risk_r, ce.entry_fill - 99.0)
         self.assertAlmostEqual(ce.fees, 0.0005 * (ce.entry_fill + ce.stop_fill))
-        # avauksen spread/liukuma EI sisälly tappioon toista kertaa
-        self.assertAlmostEqual(ce.loss_at_stop, ce.entry_fill - ce.stop_fill + ce.fees + ce.funding)
-        self.assertAlmostEqual(ce.total_cost, ce.entry_friction + ce.exit_friction + ce.fees + ce.funding)
+        self.assertAlmostEqual(ce.loss_at_stop, ce.entry_fill - ce.stop_fill + ce.fees + ce.funding_reserve)
+        self.assertAlmostEqual(ce.stop_cost_estimate,
+                               ce.entry_friction + ce.exit_friction + ce.fees + ce.funding_reserve)
 
-    def test_stop_tappio_on_riskibudjetti(self):
+    def test_kaava_short_numeerinen(self):
+        """Short: P = 100, S = 101, h = 0,01 %. Käsin laskettu:
+        E  = 100 × (1 − 0,0003)          = 99,97
+        X  = 101 × (1 + 0,0006)          = 101,0606
+        R  = S − E                       = 1,03
+        Ke = 100 × 0,0003                = 0,03
+        Kx = 101 × 0,0006                = 0,0606
+        F  = 0,0005 × (99,97 + 101,0606) = 0,1005153
+        Fu = 99,97 × 0,0000125 × 0,25    = 0,000312406
+        C  = Ke + Kx + F + Fu            = 0,191427706
+        L  = X − E + F + Fu              = 1,191427706"""
+        from kynttilatulkki.strategy import estimate_costs
+        ce = estimate_costs(self.R11, "short", 100.0, 101.0, HS)
+        for got, want in ((ce.entry_fill, 99.97), (ce.stop_fill, 101.0606), (ce.price_risk_r, 1.03),
+                          (ce.entry_friction, 0.03), (ce.exit_friction, 0.0606), (ce.fees, 0.1005153),
+                          (ce.funding_reserve, 0.000312406), (ce.stop_cost_estimate, 0.191427706),
+                          (ce.loss_at_stop, 1.191427706)):
+            self.assertAlmostEqual(got, want, places=8)
+
+    def test_short_stop_moottorissa(self):
+        e = engine(self.R11)
+        e.pending["PF_TST"] = sig("short", 101.0)
+        e.on_bar_open("PF_TST", T0, 100.0)
+        p = e.positions["PF_TST"]
+        self.assertAlmostEqual(p.qty, 50.0 / 1.191427706, places=6)   # DefaultSpec: askel 1e-8
+        self.assertAlmostEqual(p.entry_price, 99.97)
+        e.on_bar_close(c(T0, 100, 101.5, 99.9, 101.2))
+        tr = e.trades[0]
+        self.assertAlmostEqual(tr.exit_price, 101.0606, places=8)
+        unused = p.qty * 99.97 * self.R11.fallback_funding_per_hour * 14 / 60
+        self.assertAlmostEqual(tr.net_pnl, -50.0 + unused, places=3)   # mallin oletuksilla
+
+    def test_stop_tappio_on_riskibudjetti_long(self):
         e = engine(self.R11)
         e.pending["PF_TST"] = sig("long", 99.0)
         e.on_bar_open("PF_TST", T0, 100.0)
         p = e.positions["PF_TST"]
-        self.assertAlmostEqual(p.risk_budget, 50.0)
+        self.assertAlmostEqual(p.risk_budget, 50.0, places=5)
         e.on_bar_close(c(T0, 100, 100.1, 98.0, 98.5))
         tr = e.trades[0]
-        # ero vain siitä, että funding-arvio kattaa 15 min mutta positio oli auki 1 min
-        unused_funding = p.qty * p.entry_price * self.R11.fallback_funding_per_hour * 14 / 60
-        self.assertAlmostEqual(tr.net_pnl, -50.0 + unused_funding, places=3)
+        unused = p.qty * p.entry_price * self.R11.fallback_funding_per_hour * 14 / 60
+        self.assertAlmostEqual(tr.net_pnl, -50.0 + unused, places=3)
         self.assertAlmostEqual(tr.budget_multiple, -1.0, places=3)
+
+    def test_hintakuilu_ylittaa_budjetin(self):
+        e = engine(self.R11)
+        e.pending["PF_TST"] = sig("long", 99.0)
+        e.on_bar_open("PF_TST", T0, 100.0)
+        e.on_bar_close(c(T0, 100, 100.1, 99.5, 99.6))
+        e.on_bar_open("PF_TST", T0 + M, 97.0)       # avautuu reilusti stopin alapuolelta
+        self.assertLess(e.trades[0].budget_multiple, -1.5)
 
     def test_v2_suodatin_tiukempi(self):
         from kynttilatulkki.strategy import estimate_costs
         ce = estimate_costs(RULESETS["v2"], "long", 100.0, 99.5, HS)
-        ratio = ce.price_risk_r / ce.total_cost
-        self.assertTrue(2 <= ratio < 4)      # v1.1 hyväksyy, v2 hylkää
+        ratio = ce.price_risk_r / ce.stop_cost_estimate
+        self.assertTrue(2 <= ratio < 4)
         for key, opened in (("v1.1", True), ("v2", False)):
             e = engine(RULESETS[key])
             e.pending["PF_TST"] = sig("long", 99.5)
             e.on_bar_open("PF_TST", T0, 100.0)
             self.assertEqual("PF_TST" in e.positions, opened, key)
+
+
+class TestKokorajat(unittest.TestCase):
+    R11 = RULESETS["v1.1"]
+
+    def spec(self, step=1.0, maxpos=1e18, levels=((0.0, 0.02),)):
+        from kynttilatulkki.kraken import InstrumentSpec
+        return InstrumentSpec("PF_TST", step, maxpos, levels)
+
+    def size(self, **kw):
+        from kynttilatulkki.strategy import size_position
+        args = dict(equity=10_000.0, loss_at_stop=1.0, entry=100.0, spec=self.spec(),
+                    open_notional=0.0, open_margin=0.0)
+        args.update(kw)
+        return size_position(self.R11, **args)
+
+    def test_pyoristys_alaspain(self):
+        sz = self.size(loss_at_stop=1.3, spec=self.spec(step=1.0))      # 50/1,3 = 38,46
+        self.assertEqual(sz.qty, 38.0)
+        self.assertAlmostEqual(sz.risk_budget, 38 * 1.3)
+        self.assertLessEqual(sz.risk_budget, 50.0)
+        sz = self.size(loss_at_stop=1.3, spec=self.spec(step=0.001))
+        self.assertEqual(sz.qty, 38.461)
+
+    def test_alle_askeleen_nolla(self):
+        sz = self.size(loss_at_stop=100.0, entry=60_000.0, spec=self.spec(step=0.0001))
+        self.assertGreater(sz.qty, 0)                              # 0,5 -> ok
+        sz = self.size(loss_at_stop=1e6, entry=60_000.0, spec=self.spec(step=0.0001))
+        self.assertEqual(sz.qty, 0.0)                              # 0,00005 < 0,0001
+
+    def test_nimellisarvo_per_positio(self):
+        sz = self.size(loss_at_stop=0.01)                          # budjetti antaisi 5 000 kpl = 500 000 USD
+        self.assertEqual(sz.binding, "nimellisarvo/positio")
+        self.assertLessEqual(sz.notional, 3 * 10_000)
+
+    def test_nimellisarvo_yhteensa(self):
+        sz = self.size(loss_at_stop=0.01, open_notional=45_000.0)
+        self.assertEqual(sz.binding, "nimellisarvo yhteensä")
+        self.assertLessEqual(sz.notional, 5_000)
+
+    def test_marginaali(self):
+        sz = self.size(loss_at_stop=0.01, open_margin=4_500.0)       # 10x -> 10 % marginaali
+        self.assertEqual(sz.binding, "marginaali")
+        self.assertAlmostEqual(sz.initial_margin_rate, 0.10)
+        self.assertLessEqual(4_500.0 + sz.margin, 0.5 * 10_000 + 1e-9)
+
+    def test_porrastettu_marginaali(self):
+        sp = self.spec(levels=((0.0, 0.02), (20_000.0, 0.25)))
+        sz = self.size(loss_at_stop=0.01, spec=sp)                   # 30 000 USD -> porras 25 %
+        self.assertAlmostEqual(sz.initial_margin_rate, 0.25)
+        self.assertLessEqual(sz.margin, 0.5 * 10_000 + 1e-9)
+
+    def test_krakenin_maksimikoko(self):
+        sz = self.size(loss_at_stop=0.01, spec=self.spec(maxpos=7.0))
+        self.assertEqual((sz.qty, sz.binding), (7.0, "Krakenin maksimikoko"))
+
+    def test_puuttuva_sopimus_ohitetaan(self):
+        e = PaperEngine(self.R11, lambda s, t: HS, lambda s, t: None, log=lambda m: None, specs={})
+        e.pending["PF_TST"] = sig("long", 99.0)
+        e.on_bar_open("PF_TST", T0, 100.0)
+        self.assertEqual(e.positions, {})
+        self.assertIn("sopimustiedot puuttuvat (koko- ja marginaalirajoja ei voi tarkistaa)", e.skipped)

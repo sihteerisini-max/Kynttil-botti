@@ -74,7 +74,7 @@ def synthetic(symbol: str, start: int, minutes: int, seed: int) -> list[Candle]:
 
 
 def run(candles_by_sym: dict[str, list[Candle]], rules_key: str, half_spreads: dict[str, float],
-        funding: dict[str, dict[int, float]], log=print) -> PaperEngine:
+        funding: dict[str, dict[int, float]], log=print, specs: dict | None = None) -> PaperEngine:
     rules = RULESETS[rules_key]
 
     def hs_fn(sym: str, t: int) -> float:
@@ -83,7 +83,7 @@ def run(candles_by_sym: dict[str, list[Candle]], rules_key: str, half_spreads: d
     def funding_fn(sym: str, t: int):
         return funding.get(sym, {}).get(t - t % HOUR)
 
-    eng = PaperEngine(rules, hs_fn, funding_fn, log=log)
+    eng = PaperEngine(rules, hs_fn, funding_fn, log=log, specs=specs)
     by_time: dict[int, list[Candle]] = {}
     for cs in candles_by_sym.values():
         for c in cs:
@@ -122,6 +122,7 @@ def main(argv=None) -> None:
     candles: dict[str, list[Candle]] = {}
     half_spreads: dict[str, float] = {}
     funding: dict[str, dict[int, float]] = {}
+    specs = None
     spread_note = ""
 
     if a.demo:
@@ -135,6 +136,7 @@ def main(argv=None) -> None:
     else:
         from . import kraken
         tickers = kraken.fetch_tickers()
+        specs = kraken.fetch_instruments()
         symbols = ([s.strip().upper() for s in a.symbols.split(",")] if a.symbols
                    else [s for s, _ in sorted(tickers.items(), key=lambda kv: -kv[1].volume_quote)[:a.top]])
         os.makedirs(a.data_dir, exist_ok=True)
@@ -167,7 +169,12 @@ def main(argv=None) -> None:
             print(msg)
         trade_lines.append(msg)
 
-    eng = run(candles, a.rules, half_spreads, funding, log=log)
+    if specs is not None:
+        miss = [s for s in symbols if s not in specs]
+        print("Sopimustiedot: " + ", ".join(
+            f"{s} askel {specs[s].qty_step:g}, alkumarginaali {specs[s].margin_levels[0][1]:.0%}"
+            for s in symbols if s in specs) + (f" | PUUTTUU: {', '.join(miss)}" if miss else ""))
+    eng = run(candles, a.rules, half_spreads, funding, log=log, specs=specs)
     summary = summarize(eng.trades, eng)
     print("\n" + "=" * 70 + "\n" + summary)
 
@@ -184,7 +191,9 @@ def main(argv=None) -> None:
         f.write("\n".join(trade_lines))
     with open(os.path.join(out, "meta.json"), "w") as f:
         json.dump({"ruleset": rules.version, "start": iso(start), "end": iso(end), "symbols": symbols,
-                   "half_spreads": half_spreads, "demo": a.demo}, f, indent=2)
+                   "half_spreads": half_spreads, "demo": a.demo,
+                   "specs": {k: [v.qty_step, v.max_position, list(v.margin_levels)]
+                             for k, v in (specs or {}).items() if k in symbols}}, f, indent=2)
     print(f"\nTulokset: {out}/")
     return eng
 

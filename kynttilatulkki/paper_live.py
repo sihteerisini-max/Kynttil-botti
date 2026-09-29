@@ -31,7 +31,8 @@ MIN = 60_000
 class Account:
     """Yksi paperitili = yksi sääntöversio, oma pääoma, tila ja lokit."""
 
-    def __init__(self, version: str, state_dir: str, log_dir: str, tickers: dict, reset: bool):
+    def __init__(self, version: str, state_dir: str, log_dir: str, tickers: dict, reset: bool,
+                 specs: dict):
         self.rules = r = RULESETS[version]
         self.version = version
         self.state_path = os.path.join(state_dir, f"paper_{version}.pkl")
@@ -41,7 +42,7 @@ class Account:
         tag = f"[{version}] "
         self.engine = PaperEngine(r, self._hs, self._funding,
                                   log=lambda m: print(tag + m, flush=True),
-                                  on_trade=self._on_trade, on_event=self._on_event)
+                                  on_trade=self._on_trade, on_event=self._on_event, specs=specs)
         self.last_closed: dict[str, Candle] = {}
         self.opened: dict[str, int] = {}
         self.symbols: list[str] | None = None
@@ -137,7 +138,8 @@ def main(argv=None) -> None:
     os.makedirs(a.state_dir, exist_ok=True)
 
     tickers: dict[str, kraken.Ticker] = {}
-    accounts = [Account(v, a.state_dir, a.log_dir, tickers, a.reset) for v in versions]
+    specs = kraken.fetch_instruments()
+    accounts = [Account(v, a.state_dir, a.log_dir, tickers, a.reset, specs) for v in versions]
 
     # Sama markkinalista kaikille tileille: tallennettu lista tai uusi valinta
     saved = next((acc.symbols for acc in accounts if acc.symbols), None)
@@ -147,17 +149,18 @@ def main(argv=None) -> None:
         symbols = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
     else:
         symbols = kraken.top_perpetuals(a.top)
-    now = int(time.time() * 1000)
     for acc in accounts:
         acc.symbols = symbols
-        acc.started_at = acc.started_at or now
 
     print(f"PAPERIKAUPPA – versiot {', '.join(versions)} rinnakkain erillisillä paperitileillä")
     print(f"Kraken Derivatives perpetualit: {', '.join(symbols)}")
-    print(f"Tilien aloitushetki: {', '.join(f'{acc.version} {ts(acc.started_at)}' for acc in accounts)}")
+    miss = [s for s in symbols if s not in specs]
+    print("Sopimustiedot: " + ", ".join(f"{s} askel {specs[s].qty_step:g}" for s in symbols if s in specs)
+          + (f" | PUUTTUU (ei kauppoja näissä): {', '.join(miss)}" if miss else ""))
     print("Ei oikeita toimeksiantoja. Säännöt: docs/SAANNOT_v1.md, docs/SAANNOT_v2.md\n", flush=True)
 
     # --- lämmittely / kiinniotto (ei uusia kauppoja) ------------------------
+    now = int(time.time() * 1000)
     tickers.update(kraken.fetch_tickers())
     for s in symbols:
         known = [acc.last_closed[s].open_time for acc in accounts if s in acc.last_closed]
@@ -167,10 +170,17 @@ def main(argv=None) -> None:
         for acc in accounts:
             acc.feed(s, cs, entries=False)
         print(f"  {s}: historiaa {len(accounts[0].engine.analyzer(s).history)} kynttilää", flush=True)
+    start = int(time.time() * 1000)
     for acc in accounts:
         acc.engine.pending.clear()
+        acc.started_at = acc.started_at or start
         acc.save()
-    print()
+    starts = {acc.started_at for acc in accounts}
+    print(f"JAKSO B – tilien todellinen aloitushetki: "
+          + ", ".join(f"{acc.version} {ts(acc.started_at)}" for acc in accounts))
+    if len(starts) > 1:
+        print("VAROITUS: tilien aloitushetket eroavat – versioiden vertailu ei ole samalta jaksolta.")
+    print(flush=True)
 
     last_status = 0
     try:

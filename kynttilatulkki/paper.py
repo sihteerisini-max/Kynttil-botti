@@ -16,7 +16,7 @@ from typing import Callable
 from .analyzer import SymbolAnalyzer
 from .models import Candle
 from .patterns import build_context
-from .strategy import Ruleset, Signal, estimate_costs, make_signal
+from .strategy import DefaultSpec, Ruleset, Signal, estimate_costs, make_signal, size_position
 
 DAY = 86_400_000
 HOUR = 3_600_000
@@ -44,6 +44,7 @@ class Position:
     signal_time: int
     bars_held: int = 0
     risk_budget: float = 0.0   # USD: suunniteltu kokonaistappio stopissa (kulut mukana)
+    margin: float = 0.0        # sidottu alkumarginaali USD
 
 
 @dataclass
@@ -97,8 +98,10 @@ class PaperEngine:
                  log: Callable[[str], None] = print,
                  on_trade: Callable[[Trade], None] | None = None,
                  on_event: Callable[[dict], None] | None = None,
-                 verbose_signals: bool = True):
+                 verbose_signals: bool = True,
+                 specs: dict | None = None):
         self.r = rules
+        self.specs = specs            # None = testit/demo (DefaultSpec)
         self.half_spread_fn = half_spread_fn
         self.funding_fn = funding_fn
         self.log = log
@@ -213,9 +216,18 @@ class PaperEngine:
             entry, risk_r = ce.entry_fill, ce.price_risk_r
             if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
                 return self._skip(sig, t, "avaushinta jo stopin väärällä puolella")
-            if risk_r < r.min_r_to_cost * ce.total_cost:
-                return self._skip(sig, t, f"kulusuodatin: R {risk_r / entry:.3%} < {r.min_r_to_cost:g} x kulut {ce.total_cost / entry:.3%}")
-            qty = budget / ce.loss_at_stop
+            if risk_r < r.min_r_to_cost * ce.stop_cost_estimate:
+                return self._skip(sig, t, f"kulusuodatin: R {risk_r / entry:.3%} < {r.min_r_to_cost:g} x "
+                                          f"stop-skenaarion kustannusarvio {ce.stop_cost_estimate / entry:.3%}")
+            spec = DefaultSpec() if self.specs is None else self.specs.get(sig.symbol)
+            if spec is None:
+                return self._skip(sig, t, "sopimustiedot puuttuvat (koko- ja marginaalirajoja ei voi tarkistaa)")
+            sz = size_position(r, eq, ce.loss_at_stop, entry, spec, self.open_notional(),
+                               sum(p.margin for p in self.positions.values()))
+            if sz.qty <= 0:
+                return self._skip(sig, t, f"koko alle pienimmän kaupattavan askeleen (raja: {sz.binding})")
+            return self._open(sig, t, price, entry, sz.qty, risk_r, hs, sz.risk_budget, sz.margin,
+                              f" | raja: {sz.binding}, marginaali {sz.margin:,.0f} USD ({sz.initial_margin_rate:.0%})")
         else:   # alkuperäinen v1 (säilytetään jakson A toistettavuuden vuoksi)
             entry = price * (1 + hs + r.slippage) if long else price * (1 - hs - r.slippage)
             if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
@@ -231,16 +243,22 @@ class PaperEngine:
         if qty <= 0:
             return self._skip(sig, t, "nimellisarvon katto täynnä")
         budget *= qty / full_qty
+        return self._open(sig, t, price, entry, qty, risk_r, hs, budget, 0.0, "")
+
+    def _open(self, sig: Signal, t: int, price: float, entry: float, qty: float, risk_r: float,
+              hs: float, budget: float, margin: float, note: str) -> None:
+        r, s = self.r, self.state
+        long = sig.side == "long"
         target = entry + r.target_r * risk_r if long else entry - r.target_r * risk_r
         pos = Position(s.next_id, sig.symbol, sig.side, t, price, entry, qty, sig.stop, target,
                        risk_r, qty * entry * r.taker_fee, hs, sig.reason(), sig.candle.open_time,
-                       risk_budget=budget)
+                       risk_budget=budget, margin=margin)
         s.next_id += 1
         self.positions[sig.symbol] = pos
         self.log(f"[{sig.symbol} {ts(t)}] AVAUS #{pos.id} {sig.side.upper()} @ {entry:.6g} "
                  f"(avaus {price:.6g} + spread/liukuma) | koko {qty:.6g} = {qty * entry:,.0f} USD | "
                  f"stop {sig.stop:.6g} | tavoite {target:.6g} | hintariski {qty * risk_r:,.2f} USD, "
-                 f"riskibudjetti (sis. kulut) {budget:,.2f} USD\n"
+                 f"riskibudjetti (sis. kulut) {budget:,.2f} USD{note}\n"
                  f"      peruste: {sig.reason()}")
         self._event("open", **asdict(pos))
 

@@ -114,3 +114,34 @@ def fetch_funding_history(symbol: str, base: str = BASE_URL) -> dict[int, float]
         ts = datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00"))
         out[int(ts.timestamp() * 1000)] = float(r.get("relativeFundingRate") or 0)
     return out
+
+
+@dataclass(frozen=True)
+class InstrumentSpec:
+    """Kaupattavan koon ja marginaalin rajat (Kraken /derivatives/api/v3/instruments)."""
+    symbol: str
+    qty_step: float                       # 10^-contractValueTradePrecision
+    max_position: float                   # maxPositionSize (yksikköä)
+    margin_levels: tuple = ((0.0, 0.10),)  # ((nimellisarvon alaraja USD, alkumarginaali), ...)
+
+    def initial_margin(self, notional: float) -> float:
+        im = self.margin_levels[0][1]
+        for lo, m in self.margin_levels:
+            if notional >= lo:
+                im = m
+        return im
+
+
+def fetch_instruments(base: str = BASE_URL) -> dict[str, InstrumentSpec]:
+    rows = _get("/derivatives/api/v3/instruments", base=base).get("instruments", [])
+    out = {}
+    for r in rows:
+        sym = str(r.get("symbol", "")).upper()
+        if not sym.startswith("PF_") or "contractValueTradePrecision" not in r:
+            continue
+        levels = r.get("retailMarginLevels") or r.get("marginLevels") or []
+        ml = tuple(sorted((float(x.get("numNonContractUnits") or x.get("contracts") or 0),
+                           float(x["initialMargin"])) for x in levels)) or ((0.0, 0.10),)
+        out[sym] = InstrumentSpec(sym, 10 ** -int(r["contractValueTradePrecision"]),
+                                  float(r.get("maxPositionSize") or 1e18), ml)
+    return out
