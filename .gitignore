@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 logs/
 *.zip
+data/
+results/demo_*
+state/

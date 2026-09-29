@@ -74,3 +74,52 @@ havaintoja.
 Havainnot näkyvät Railwayn *Deploy Logs* -näkymässä. Palvelu ei tarvitse
 porttia eikä julkista osoitetta (worker). `railway.json` määrittää
 käynnistyskomennon ja uudelleenkäynnistyksen kaatumisen jälkeen.
+
+---
+
+# Vaihe 2: paperikauppa (Kraken Derivatives -perpetualit)
+
+**Vain paperikauppaa – koodi ei lähetä toimeksiantoja eikä käytä API-avaimia.**
+Säännöt: [`docs/SAANNOT_v1.md`](docs/SAANNOT_v1.md) (lukittu ennen ensimmäistä testiä).
+
+```bash
+# historiatesti oikealla Kraken-datalla (viimeiset 7 päivää, 5 vaihdetuinta perpetualia)
+python -m kynttilatulkki.backtest --rules v1 --top 5 --days 7 --quiet
+# tietty jakso ja markkinat
+python -m kynttilatulkki.backtest --rules v1 --symbols PF_XBTUSD,PF_ETHUSD --start 2026-09-20 --end 2026-09-27
+# live-paperikauppa
+python -m kynttilatulkki.paper_live --rules v1 --top 5
+```
+
+Historiatesti tallentaa datan kansioon `data/` ja tulokset kansioon
+`results/<versio>_<alku>_<loppu>/` (`yhteenveto.md`, `kaupat.jsonl`, `loki.txt`, `meta.json`).
+
+| Tiedosto | Tehtävä |
+|---|---|
+| `kynttilatulkki/strategy.py` | Versioidut säännöt (`RULESETS`), signaaliehdot |
+| `kynttilatulkki/paper.py` | Yhteinen paperikauppamoottori: avaus, stop/tavoite/aikaraja, kulut, tappiorajat |
+| `kynttilatulkki/backtest.py` | Historiatesti |
+| `kynttilatulkki/paper_live.py` | Live-paperikauppa, tila säilyy uudelleenkäynnistysten yli |
+| `kynttilatulkki/kraken.py` | Krakenin julkinen data (kynttilät, bid/ask, funding) |
+| `kynttilatulkki/start.py` | Railwayn käynnistys (MODE / BACKTEST_DAYS) |
+
+### Railway
+
+| Muuttuja | Arvo | Merkitys |
+|---|---|---|
+| `MODE` | `observe` (oletus) / `paper` | havainnointi (Binance) tai paperikauppa (Kraken) |
+| `BACKTEST_DAYS` | esim. `7` | aja ensin historiatesti, tulos Deploy Logsiin |
+| `RULES` | `v1` | sääntöversio |
+| `SYMBOLS` | esim. `PF_XBTUSD,PF_ETHUSD` | paperikaupan markkinat (muuten `TOP`) |
+| `STATE_PATH` | `/data/paper_state.pkl` | paperikaupan tila – pysyvä vain Railway Volumella |
+| `LOG_DIR` | `/data/logs` | kauppa- ja tapahtumaloki |
+| `RESET_STATE` | `1` | aloita alusta (esim. maksimipudotuksen pysäytyksen jälkeen), poista sitten |
+
+Paperikaupassa kannattaa liittää palveluun Railway Volume polkuun `/data`, jotta
+pääoma, avoimet positiot ja tappiorajat eivät nollaudu uuden julkaisun yhteydessä.
+
+### Uusi sääntöversio
+
+1. Lisää `RULESETS["v2"]` tiedostoon `strategy.py` (v1:tä ei muokata).
+2. Kirjoita `docs/SAANNOT_v2.md`: mitä muutettiin ja miksi – ennen testiä.
+3. Arvioi v2 ja v1 rinnakkain jaksolla, joka alkaa v1-testijakson jälkeen.
