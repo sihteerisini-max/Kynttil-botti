@@ -28,6 +28,7 @@ class SymbolAnalyzer:
         self.params = params
         self.history: deque[Candle] = deque(maxlen=max_history)
         self._provisional_keys: dict[int, set[str]] = {}   # open_time -> avainjoukko
+        self._printed: dict[int, set[frozenset]] = {}       # jo tulostetut joukot per kynttilä
 
     def warmup(self, candles: list[Candle]) -> None:
         """Lisää historiaa havainnoimatta (vain suljetut kynttilät)."""
@@ -53,7 +54,9 @@ class SymbolAnalyzer:
             keys = {o.key for o in obs}
             if keys != self._provisional_keys.get(candle.open_time, set()):
                 self._provisional_keys[candle.open_time] = keys
-                if obs:
+                printed = self._printed.setdefault(candle.open_time, set())
+                if obs and frozenset(keys) not in printed:
+                    printed.add(frozenset(keys))
                     events.append(Event("provisional", candle, obs))
             return events
 
@@ -72,6 +75,8 @@ class SymbolAnalyzer:
         # siivotaan vanhat keskeneräiset
         for k in [k for k in self._provisional_keys if k < candle.open_time]:
             del self._provisional_keys[k]
+        for k in [k for k in self._printed if k <= candle.open_time]:
+            del self._printed[k]
         return events
 
 
