@@ -80,10 +80,14 @@ class Observation:
     bias: str               # "nousuun viittaava" | "laskuun viittaava" | "epäröinti" | "jatkuvuus"
     strength: str           # "heikko" | "kohtalainen" | "selvempi"
     reasons: list[str] = field(default_factory=list)
+    score: int = 0              # selkeyspisteet (ks. docs/SAANNOT_v1.md)
+    volume_ratio: float = 0.0   # volyymi / 20 edeltävän keskiarvo
+    context_ok: bool = False    # edeltävä liike sopii kuvion tulkintaan
 
     def to_dict(self) -> dict:
         return {
             "symbol": self.symbol, "open_time": self.open_time, "status": self.status,
             "key": self.key, "name": self.name, "bias": self.bias,
-            "strength": self.strength, "reasons": self.reasons,
+            "strength": self.strength, "reasons": self.reasons, "score": self.score,
+            "volume_ratio": round(self.volume_ratio, 3), "context_ok": self.context_ok,
         }

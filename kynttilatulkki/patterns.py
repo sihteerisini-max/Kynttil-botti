@@ -169,9 +169,10 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
     trend_note = f"edeltävä {p.trend_window} min liike: {ctx.trend} ({ctx.trend_move_atr:+.1f} keskim. vaihteluväliä)"
     out: list[Observation] = []
 
-    def add(key, name, bias, score, reasons):
+    def add(key, name, bias, score, reasons, context_ok):
         out.append(Observation(cur.symbol, cur.open_time, status, key, name, bias,
-                               _strength(score), reasons))
+                               _strength(score), reasons, score=score, volume_ratio=vr,
+                               context_ok=context_ok))
 
     # --- Doji ---------------------------------------------------------------
     is_doji = B <= p.doji_body * R
@@ -201,7 +202,9 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
             reasons.append("sivuttaisliikkeessä doji on tavallinen eikä kerro paljoa")
         score += v_score
         reasons.append(v_note)
-        add(key, name, bias, score, reasons)
+        ctx_ok = ((key == "dragonfly_doji" and ctx.trend == "lasku")
+                  or (key == "gravestone_doji" and ctx.trend == "nousu"))
+        add(key, name, bias, score, reasons, ctx_ok)
 
     # --- Vasara / hirttäytyjä ----------------------------------------------
     if (not is_doji and L >= p.shadow_to_body * B and L >= p.long_shadow_min * R
@@ -228,7 +231,7 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
             reasons.append("ei selvää edeltävää trendiä, joten muodolla on vähän merkitystä")
         score += v_score
         reasons.append(v_note)
-        add(key, name, bias, score, reasons)
+        add(key, name, bias, score, reasons, ctx.trend != "sivuttain")
 
     # --- Tähdenlento / käänteinen vasara ------------------------------------
     if (not is_doji and U >= p.shadow_to_body * B and U >= p.long_shadow_min * R
@@ -255,7 +258,7 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
             reasons.append("ei selvää edeltävää trendiä, joten muodolla on vähän merkitystä")
         score += v_score
         reasons.append(v_note)
-        add(key, name, bias, score, reasons)
+        add(key, name, bias, score, reasons, ctx.trend != "sivuttain")
 
     # --- Peittävä kuvio (2 kynttilää) ---------------------------------------
     pc = prev[-1] if prev else None
@@ -283,7 +286,7 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
                 reasons.append(f"runko {B / ctx.avg_body:.1f}x keskimääräinen runko")
             score += v_score
             reasons.append(v_note)
-            add(key, name, bias, score, reasons)
+            add(key, name, bias, score, reasons, ctx.trend == want)
 
     # --- Marubozu ----------------------------------------------------------
     if B >= p.marubozu_body * R and rel >= p.marubozu_range_rel:
@@ -298,6 +301,6 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
         reasons.append(v_note)
         add("bullish_marubozu" if up else "bearish_marubozu",
             "Nouseva marubozu" if up else "Laskeva marubozu",
-            "jatkuvuus", score, reasons)
+            "jatkuvuus", score, reasons, False)
 
     return out
