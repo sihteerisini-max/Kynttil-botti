@@ -83,6 +83,11 @@ class Observation:
     score: int = 0              # selkeyspisteet (ks. docs/SAANNOT_v1.md)
     volume_ratio: float = 0.0   # volyymi / 20 edeltävän keskiarvo
     context_ok: bool = False    # edeltävä liike sopii kuvion tulkintaan
+    # --- läpinäkyvyys (ei vaikuta tunnistukseen) ---
+    conditions: list = field(default_factory=list)   # [{"ehto","arvo","raja","ok"}]
+    measures: dict = field(default_factory=dict)      # mitatut suureet
+    candles_used: dict = field(default_factory=dict)  # mihin kynttilöihin havainto perustuu
+    detected_at: int = 0                              # milloin tunnistus syntyi (ms, UTC)
 
     def to_dict(self) -> dict:
         return {
@@ -90,4 +95,6 @@ class Observation:
             "key": self.key, "name": self.name, "bias": self.bias,
             "strength": self.strength, "reasons": self.reasons, "score": self.score,
             "volume_ratio": round(self.volume_ratio, 3), "context_ok": self.context_ok,
+            "conditions": self.conditions, "measures": self.measures,
+            "candles_used": self.candles_used, "detected_at": self.detected_at,
         }

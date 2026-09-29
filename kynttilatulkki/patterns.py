@@ -133,6 +133,11 @@ def describe_candle(cur: Candle, ctx: Context, elapsed_frac: float = 1.0) -> str
 # ---------------------------------------------------------------------------
 # Kuvioiden tunnistus
 # ---------------------------------------------------------------------------
+def _cond(text: str, value, limit: str, ok: bool) -> dict:
+    return {"ehto": text, "arvo": round(value, 4) if isinstance(value, float) else value,
+            "raja": limit, "ok": ok}
+
+
 def _strength(score: int) -> str:
     return "selvempi" if score >= 3 else "kohtalainen" if score == 2 else "heikko"
 
@@ -168,11 +173,35 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
     v_score, v_note = _volume_notes(vr, p, provisional)
     trend_note = f"edeltävä {p.trend_window} min liike: {ctx.trend} ({ctx.trend_move_atr:+.1f} keskim. vaihteluväliä)"
     out: list[Observation] = []
+    closed_prev = [c for c in prev if c.closed]
+    measures = {
+        "R": R, "B": B, "U": U, "L": L,
+        "B/R": cur.ratio(B), "U/R": cur.ratio(U), "L/R": cur.ratio(L),
+        "R/keskim.R": rel, "keskim.R": ctx.avg_range, "keskim.B": ctx.avg_body,
+        "volyymi/keskim.": vr, "trendi": ctx.trend, "liike_keskim.R": ctx.trend_move_atr,
+        "ikkunan_alin": ctx.recent_low, "ikkunan_ylin": ctx.recent_high,
+    }
+    base_conds = [
+        _cond(f"historiaa ≥ {p.min_history} suljettua kynttilää", len(closed_prev), f"≥ {p.min_history}", True),
+        _cond("vaihteluväli / keskim. vaihteluväli", rel, f"≥ {p.min_range_rel}", True),
+    ]
+    used_base = {
+        "kynttila": cur.open_time,
+        "keskiarvot_alkaen": closed_prev[-p.avg_window:][0].open_time,
+        "trendi_alkaen": closed_prev[-p.trend_window:][0].open_time,
+        "ikkuna_loppuu": closed_prev[-1].open_time,
+    }
+    trend_cond = _cond(f"edeltävä {p.trend_window} min liike (keskim. vaihteluväleinä)", ctx.trend_move_atr,
+                       f"lasku ≤ −{p.trend_threshold_atr}, nousu ≥ +{p.trend_threshold_atr}", True)
 
-    def add(key, name, bias, score, reasons, context_ok):
+    def add(key, name, bias, score, reasons, context_ok, conds, extra_used=None):
+        used = dict(used_base)
+        if extra_used:
+            used.update(extra_used)
         out.append(Observation(cur.symbol, cur.open_time, status, key, name, bias,
                                _strength(score), reasons, score=score, volume_ratio=vr,
-                               context_ok=context_ok))
+                               context_ok=context_ok, conditions=base_conds + conds + [trend_cond],
+                               measures=dict(measures), candles_used=used))
 
     # --- Doji ---------------------------------------------------------------
     is_doji = B <= p.doji_body * R
@@ -204,7 +233,18 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
         reasons.append(v_note)
         ctx_ok = ((key == "dragonfly_doji" and ctx.trend == "lasku")
                   or (key == "gravestone_doji" and ctx.trend == "nousu"))
-        add(key, name, bias, score, reasons, ctx_ok)
+        conds = [_cond("runko / vaihteluväli", cur.ratio(B), f"≤ {p.doji_body}", True)]
+        if key == "dragonfly_doji":
+            conds += [_cond("yläsvarjo / vaihteluväli", cur.ratio(U), "≤ 0.10", True),
+                      _cond("alavarjo / vaihteluväli", cur.ratio(L), f"≥ {p.long_shadow_min}", True)]
+        elif key == "gravestone_doji":
+            conds += [_cond("alavarjo / vaihteluväli", cur.ratio(L), "≤ 0.10", True),
+                      _cond("yläsvarjo / vaihteluväli", cur.ratio(U), f"≥ {p.long_shadow_min}", True)]
+        elif key == "long_legged_doji":
+            conds += [_cond("yläsvarjo / vaihteluväli", cur.ratio(U), "≥ 0.30", True),
+                      _cond("alavarjo / vaihteluväli", cur.ratio(L), "≥ 0.30", True),
+                      _cond("vaihteluväli / keskim.", rel, "≥ 1.0", True)]
+        add(key, name, bias, score, reasons, ctx_ok, conds)
 
     # --- Vasara / hirttäytyjä ----------------------------------------------
     if (not is_doji and L >= p.shadow_to_body * B and L >= p.long_shadow_min * R
@@ -231,7 +271,11 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
             reasons.append("ei selvää edeltävää trendiä, joten muodolla on vähän merkitystä")
         score += v_score
         reasons.append(v_note)
-        add(key, name, bias, score, reasons, ctx.trend != "sivuttain")
+        conds = [_cond("runko / vaihteluväli", cur.ratio(B), f"> {p.doji_body} (ei doji)", True),
+                 _cond("alavarjo / runko", L / B, f"≥ {p.shadow_to_body}", True),
+                 _cond("alavarjo / vaihteluväli", cur.ratio(L), f"≥ {p.long_shadow_min}", True),
+                 _cond("yläsvarjo / vaihteluväli", cur.ratio(U), f"≤ {p.short_shadow_max}", True)]
+        add(key, name, bias, score, reasons, ctx.trend != "sivuttain", conds)
 
     # --- Tähdenlento / käänteinen vasara ------------------------------------
     if (not is_doji and U >= p.shadow_to_body * B and U >= p.long_shadow_min * R
@@ -258,7 +302,11 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
             reasons.append("ei selvää edeltävää trendiä, joten muodolla on vähän merkitystä")
         score += v_score
         reasons.append(v_note)
-        add(key, name, bias, score, reasons, ctx.trend != "sivuttain")
+        conds = [_cond("runko / vaihteluväli", cur.ratio(B), f"> {p.doji_body} (ei doji)", True),
+                 _cond("yläsvarjo / runko", U / B, f"≥ {p.shadow_to_body}", True),
+                 _cond("yläsvarjo / vaihteluväli", cur.ratio(U), f"≥ {p.long_shadow_min}", True),
+                 _cond("alavarjo / vaihteluväli", cur.ratio(L), f"≤ {p.short_shadow_max}", True)]
+        add(key, name, bias, score, reasons, ctx.trend != "sivuttain", conds)
 
     # --- Peittävä kuvio (2 kynttilää) ---------------------------------------
     pc = prev[-1] if prev else None
@@ -286,7 +334,13 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
                 reasons.append(f"runko {B / ctx.avg_body:.1f}x keskimääräinen runko")
             score += v_score
             reasons.append(v_note)
-            add(key, name, bias, score, reasons, ctx.trend == want)
+            up = cur.direction == 1
+            conds = [_cond("edellisen runko / vaihteluväli", pc.body / pc.range, f"> {p.doji_body}", True),
+                     _cond("suunnat vastakkaiset", 1.0, "edellinen " + ("laskeva" if up else "nouseva"), True),
+                     _cond("avaus vs. edellinen päätös", cur.open - pc.close, "≤ 0" if up else "≥ 0", True),
+                     _cond("päätös vs. edellinen avaus", cur.close - pc.open, "> 0" if up else "< 0", True),
+                     _cond("runko / edellinen runko", B / pc.body, "> 1", True)]
+            add(key, name, bias, score, reasons, ctx.trend == want, conds, {"edellinen": pc.open_time})
 
     # --- Marubozu ----------------------------------------------------------
     if B >= p.marubozu_body * R and rel >= p.marubozu_range_rel:
@@ -301,6 +355,8 @@ def detect(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT,
         reasons.append(v_note)
         add("bullish_marubozu" if up else "bearish_marubozu",
             "Nouseva marubozu" if up else "Laskeva marubozu",
-            "jatkuvuus", score, reasons, False)
+            "jatkuvuus", score, reasons, False,
+            [_cond("runko / vaihteluväli", cur.ratio(B), f"≥ {p.marubozu_body}", True),
+             _cond("vaihteluväli / keskim.", rel, f"≥ {p.marubozu_range_rel}", True)])
 
     return out

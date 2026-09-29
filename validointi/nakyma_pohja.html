@@ -1,0 +1,325 @@
+<title>Kuviotunnistuksen tarkistus</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: tarkastuspöytä – yhteenveto ylhäällä, suodattimet, sitten tapauskortit (kaavio vasemmalla, ehdot oikealla) */
+:root {
+  --bg: #f5f6f4; --panel: #ffffff; --ink: #1d2422; --muted: #5f6b67; --line: #d9dedb;
+  --accent: #1f5f8b; --up: #1e8a6e; --down: #c0453a; --band: #e8eef0;
+  --ok: #1e7a4f; --okbg: #e3f3ea; --bad: #b3362d; --badbg: #fbe7e4; --warn: #8a5a00; --warnbg: #fbf0d9;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121615; --panel: #1a201e; --ink: #e4ebe8; --muted: #9aa6a2; --line: #2e3734;
+  --accent: #6fb0dd; --up: #3fbf98; --down: #ec7064; --band: #1f2a2c;
+  --ok: #5fd29a; --okbg: #173026; --bad: #f08a7f; --badbg: #3a1d1a; --warn: #e6b865; --warnbg: #352a14; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121615; --panel: #1a201e; --ink: #e4ebe8; --muted: #9aa6a2; --line: #2e3734;
+  --accent: #6fb0dd; --up: #3fbf98; --down: #ec7064; --band: #1f2a2c;
+  --ok: #5fd29a; --okbg: #173026; --bad: #f08a7f; --badbg: #3a1d1a; --warn: #e6b865; --warnbg: #352a14; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 64px; display: grid; gap: 24px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 28px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+p { margin: 0; max-width: 72ch; }
+.muted { color: var(--muted); }
+.mono, td.num, .val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+header { display: grid; gap: 8px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; }
+section { display: grid; gap: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; min-width: 0; display: grid; gap: 10px; align-content: start; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: .03em; }
+td.num, th.num { text-align: right; }
+.z { color: var(--muted); }
+.tp { color: var(--ok); font-weight: 600; } .fp, .fn { color: var(--bad); font-weight: 600; }
+.note { border-left: 3px solid var(--warn); background: var(--warnbg); padding: 10px 12px; border-radius: 4px; display: grid; gap: 4px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); padding-block: 8px; z-index: 2; border-bottom: 1px solid var(--line); }
+.chip { font: 600 13px var(--font-body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+.chip:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+select { font: 13px var(--font-body); padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); }
+label.tog { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+.count { font-size: 13px; color: var(--muted); margin-left: auto; }
+.cards { display: grid; gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; padding: 14px; }
+.card.mismatch { border-color: var(--bad); }
+@media (max-width: 760px) { .card { grid-template-columns: 1fr; } }
+.card-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.cid { font: 600 14px var(--font-mono); }
+.tag { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tag.P { color: var(--ok); } .tag.N { color: var(--down); } .tag.B { color: var(--warn); } .tag.G { color: var(--accent); } .tag.K { color: var(--ink); }
+.pill { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; padding: 1px 8px; border-radius: 3px; }
+.pill.vahv { background: var(--okbg); color: var(--ok); }
+.pill.kesk { background: var(--warnbg); color: var(--warn); }
+.verdict { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 3px; }
+.verdict.ok { background: var(--okbg); color: var(--ok); } .verdict.bad { background: var(--badbg); color: var(--bad); }
+.verdict.na { background: var(--band); color: var(--muted); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 13.5px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; min-width: 0; }
+.keys { display: flex; flex-wrap: wrap; gap: 4px; }
+.key { font: 12.5px var(--font-mono); padding: 0 6px; border-radius: 3px; background: var(--band); }
+.key.miss { background: var(--badbg); color: var(--bad); } .key.extra { background: var(--badbg); color: var(--bad); text-decoration: line-through; }
+.obs { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; }
+.obs-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.ok-mark { color: var(--ok); font-weight: 700; } .no-mark { color: var(--bad); font-weight: 700; }
+svg.chart { width: 100%; height: auto; display: block; }
+svg.chart text { font: 9px var(--font-mono); fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.sw { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; margin-right: 4px; border-radius: 2px; }
+.ticks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.tick { border: 1px solid var(--line); border-radius: 4px; padding: 6px; display: grid; gap: 4px; font-size: 12px; }
+details summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+.fix { font-size: 13px; background: var(--warnbg); border-radius: 4px; padding: 8px 10px; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Kynttiläbotti · vaihe: tunnistuksen oikeellisuus</div>
+    <h1>Kuviotunnistuksen tarkistus</h1>
+    <p>Tarkistetaan, kuvaako botti näkemänsä kynttilät oikein. Ennustuskykyä ja kannattavuutta ei arvioida tässä. Kaupankäyntisäännöt ovat ennallaan.</p>
+    <div class="facts" id="facts"></div>
+  </header>
+
+  <section>
+    <h2>Tulos kuvioittain</h2>
+    <div class="grid2">
+      <div class="panel"><h3>Määritelmän mukaan</h3>
+        <p class="muted">Oikea vastaus = mitä kirjalliset ehdot (docs/KUVIOT.md) vaativat. Mittaa, toteuttaako koodi määritelmän.</p>
+        <div class="scroll"><table id="t-maar"></table></div></div>
+      <div class="panel"><h3>Kuviokirjallisuuden mukaan</h3>
+        <p class="muted">Sama, mutta luokan G tapauksissa oikea vastaus on se, minkä tavallinen kuviokirjallisuus hyväksyisi. Löytämättä jääneet kertovat määritelmän aukoista.</p>
+        <div class="scroll"><table id="t-kirj"></table></div></div>
+    </div>
+    <div class="note">
+      <b>Miten oikeat vastaukset syntyivät</b>
+      <span>Jokainen esimerkkikynttilä rakennettiin suoraan mittasuhteista (runko, varjot, koko, edeltävä trendi), ja odotettu kuvio kirjattiin käsin määritelmistä. Esimerkkitiedosto ei käytä tunnistuskoodia. Botti sai kynttilät yksi kerrallaan, eikä se nähnyt tulevia kynttilöitä.</span>
+      <span id="fixnote"></span>
+    </div>
+    <div class="note">
+      <b>Rajoitukset</b>
+      <span>Rakennetut esimerkit osoittavat, toteuttaako koodi ehdot oikein. Ne eivät osoita, vastaavatko ehdot sitä, mitä ihminen näkee oikeasta kaaviosta. Sitä varten alimpana on 42 oikean jakson A tunnistuksen otos. Otosta ei ole luokiteltu. Keskeneräiset havainnot näkyvät vain tikkiesimerkeissä (K), koska minuuttihistoriassa ei ole minuutin sisäistä hintakulkua.</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Havaintojen määrä oikeassa datassa</h2>
+    <div class="panel">
+      <p class="muted" id="freqnote"></p>
+      <div class="scroll"><table id="t-freq"></table></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tapaukset</h2>
+    <div class="filters" role="toolbar" aria-label="Suodattimet">
+      <button class="chip" data-f="all" aria-pressed="true" id="f-all">Kaikki</button>
+      <button class="chip" data-f="P" aria-pressed="false" id="f-P">P oikea kuvio</button>
+      <button class="chip" data-f="N" aria-pressed="false" id="f-N">N samannäköinen</button>
+      <button class="chip" data-f="B" aria-pressed="false" id="f-B">B rajatapaus</button>
+      <button class="chip" data-f="G" aria-pressed="false" id="f-G">G tunnettu aukko</button>
+      <button class="chip" data-f="K" aria-pressed="false" id="f-K">K keskeneräinen</button>
+      <button class="chip" data-f="R" aria-pressed="false" id="f-R">Oikea data (ei luokiteltu)</button>
+      <select id="f-key" aria-label="Kuvio"><option value="">Kaikki kuviot</option></select>
+      <label class="tog"><input type="checkbox" id="f-diff"> vain poikkeamat</label>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--up)"></i>nouseva</span>
+      <span><i class="sw" style="background:var(--down)"></i>laskeva</span>
+      <span><i class="sw" style="background:var(--band);border:1px solid var(--line)"></i>edeltävän liikkeen ikkuna (10 min)</span>
+      <span><i class="sw" style="border:2px solid var(--accent)"></i>tunnistettava kynttilä</span>
+      <span><i class="sw" style="border:2px dashed var(--accent)"></i>edellinen kynttilä (peittävä kuvio)</span>
+    </div>
+    <div class="cards" id="cards"></div>
+  </section>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const N = D.nimet;
+const nm = k => N[k] || k;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (x, d = 3) => typeof x === "number" ? Number.isInteger(x) && Math.abs(x) < 1e6 ? String(x) : (Math.abs(x) >= 1000 ? x.toFixed(1) : x.toFixed(d)).replace(".", ",") : esc(x);
+const hhmmss = ms => new Date(ms).toISOString().slice(11, 19) + " UTC";
+const dt = ms => new Date(ms).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+
+// --- yhteenveto -----------------------------------------------------------
+const cases = D.tapaukset;
+document.getElementById("facts").innerHTML = [
+  ["Esimerkkejä", cases.length],
+  ["Luokat", ["P","N","B","G","K"].map(l => l + " " + cases.filter(c => c.luokka === l).length).join(" · ")],
+  ["Kynttilät", "1 min, ei tulevaisuustietoa"],
+  ["Oikean datan otos", D.oikea_otos.length + " tunnistusta jaksolta A"],
+  ["Luotu", D.luotu],
+].map(([k, v]) => `<span>${k}: <b>${esc(v)}</b></span>`).join("");
+
+function scoreTable(el, sc) {
+  const rows = Object.entries(sc).sort((a, b) => nm(a[0]).localeCompare(nm(b[0]), "fi"));
+  const cell = (n, cls) => `<td class="num ${n ? cls : "z"}">${n}</td>`;
+  const lst = (v, k) => (v.tapaukset[k] || []).join(", ");
+  el.innerHTML = `<thead><tr><th>Kuvio</th><th class="num">Oikein</th><th class="num">Väärä hälytys</th><th class="num">Löytämättä</th><th>Poikkeavat tapaukset</th></tr></thead><tbody>` +
+    rows.map(([k, v]) => `<tr><td>${esc(nm(k))}</td>${cell(v.TP, "tp")}${cell(v.FP, "fp")}${cell(v.FN, "fn")}<td class="mono">${esc([lst(v, "FP") && "FP: " + lst(v, "FP"), lst(v, "FN") && "FN: " + lst(v, "FN")].filter(Boolean).join(" · ") || "–")}</td></tr>`).join("") + "</tbody>";
+}
+scoreTable(document.getElementById("t-maar"), D.tulos_maaritelma);
+scoreTable(document.getElementById("t-kirj"), D.tulos_kirjallisuus);
+const fixes = cases.filter(c => c.korjaus);
+document.getElementById("fixnote").innerHTML = fixes.length
+  ? "Luokittelijan korjaukset: " + fixes.map(c => `<b>${esc(c.id)}</b>: ${esc(c.korjaus)}`).join(" ")
+  : "";
+
+const tot = D.jakso_A_kynttiloita;
+document.getElementById("freqnote").textContent =
+  `Jakso A (22.–29.9.2026), 5 Kraken-perpetualia, ${tot.toLocaleString("fi-FI")} tulkittavaa 1 min kynttilää. Määrät kertovat, kuinka usein ehdot täyttyvät. Ne eivät kerro, ovatko tunnistukset oikein.`;
+const freq = Object.entries(D.jakso_A_maarat).sort((a, b) => b[1] - a[1]);
+const fmax = freq[0][1];
+document.getElementById("t-freq").innerHTML = `<thead><tr><th>Kuvio</th><th class="num">Vahvistettuja</th><th class="num">Osuus</th><th style="width:40%"></th></tr></thead><tbody>` +
+  freq.map(([k, v]) => `<tr><td>${esc(nm(k))}</td><td class="num">${v.toLocaleString("fi-FI")}</td><td class="num">${(100 * v / tot).toFixed(1).replace(".", ",")} %</td><td><svg viewBox="0 0 100 8" preserveAspectRatio="none" style="width:100%;height:8px" aria-hidden="true"><rect x="0" y="0" width="${100 * v / fmax}" height="8" fill="var(--accent)" opacity=".75"/></svg></td></tr>`).join("") + "</tbody>";
+
+// --- kaavio -----------------------------------------------------------------
+function chart(hist, target, opts = {}) {
+  const all = hist.concat(target ? [target] : []);
+  const n = all.length, W = 18 * n + 40, H = 170, top = 10, bot = 22, left = 4, right = 36;
+  let lo = Math.min(...all.map(c => c.l)), hi = Math.max(...all.map(c => c.h));
+  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+  const y = v => top + (hi - v) / (hi - lo) * (H - top - bot);
+  const x = i => left + i * 18 + 9;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.label || "kynttiläkaavio")}">`;
+  if (hist.length >= 10) {
+    const i0 = hist.length - 10;
+    s += `<rect x="${x(i0) - 9}" y="${top}" width="${18 * 10}" height="${H - top - bot}" fill="var(--band)"/>`;
+  }
+  for (let t = 0; t <= 2; t++) {
+    const v = lo + (hi - lo) * t / 2;
+    s += `<line x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".5"/>`;
+    s += `<text x="${W - right + 3}" y="${y(v) + 3}">${fmt(v, v > 100 ? 2 : 4)}</text>`;
+  }
+  all.forEach((c, i) => {
+    const up = c.c >= c.o, col = up ? "var(--up)" : "var(--down)";
+    const bt = y(Math.max(c.o, c.c)), bb = y(Math.min(c.o, c.c));
+    s += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(c.h)}" y2="${y(c.l)}" stroke="${col}" stroke-width="1.2"/>`;
+    s += `<rect x="${x(i) - 5}" y="${bt}" width="10" height="${Math.max(1, bb - bt)}" fill="${col}"/>`;
+    const isT = target && i === n - 1, isP = opts.prevT && c.t === opts.prevT;
+    if (isT || isP) s += `<rect x="${x(i) - 8}" y="${y(c.h) - 3}" width="16" height="${y(c.l) - y(c.h) + 6}" fill="none" stroke="var(--accent)" stroke-width="1.5" ${isP ? 'stroke-dasharray="3 2"' : ""} rx="2"/>`;
+  });
+  if (hist.length) {
+    s += `<text x="${x(0) - 6}" y="${H - 6}">${hhmmss(hist[0].t).slice(0, 5)}</text>`;
+    if (target) s += `<text x="${x(n - 1) - 12}" y="${H - 6}">${hhmmss(target.t).slice(0, 5)}</text>`;
+  }
+  return s + "</svg>";
+}
+
+// Näkymän oma mittaus hylätyille (ei botin laskema – vain näyttämistä varten)
+function viewMeasure(hist, c) {
+  const R = c.h - c.l, B = Math.abs(c.c - c.o), U = c.h - Math.max(c.o, c.c), L = Math.min(c.o, c.c) - c.l;
+  const w = hist.slice(-20), avgR = w.reduce((a, k) => a + (k.h - k.l), 0) / (w.length || 1);
+  const tw = hist.slice(-10), n = tw.length, mx = (n - 1) / 2, my = tw.reduce((a, k) => a + k.c, 0) / (n || 1);
+  let num = 0, den = 0; tw.forEach((k, i) => { num += (i - mx) * (k.c - my); den += (i - mx) ** 2; });
+  const move = den ? num / den * (n - 1) / avgR : 0;
+  return [["runko / vaihteluväli", R ? B / R : 0], ["yläsvarjo / vaihteluväli", R ? U / R : 0], ["alavarjo / vaihteluväli", R ? L / R : 0],
+          ["vaihteluväli / keskim. (20)", avgR ? R / avgR : 0], ["edeltävä 10 min liike / keskim. vaihteluväli", move], ["historiaa (kynttilää)", hist.length]];
+}
+
+function obsBlock(o) {
+  const st = o.status === "VAHVISTETTU" ? `<span class="pill vahv">VAHVISTETTU</span>` : `<span class="pill kesk">KESKENERÄINEN</span>`;
+  const m = o.measures || {};
+  const used = o.candles_used || {};
+  const conds = (o.conditions || []).map(k => `<tr><td>${esc(k.ehto)}</td><td class="num">${fmt(k.arvo)}</td><td class="mono">${esc(k.raja)}</td><td>${k.ok ? '<span class="ok-mark">✓</span>' : '<span class="no-mark">✗</span>'}</td></tr>`).join("");
+  return `<div class="obs">
+    <div class="obs-head"><b>${esc(o.name)}</b>${st}<span class="muted">${esc(o.bias)} · selkeys ${esc(o.strength)} (${o.score} p)</span></div>
+    <dl class="kv">
+      <dt>Tunnistus syntyi</dt><dd class="mono">${esc(o.detected_at_iso || "–")}</dd>
+      <dt>Edeltävä liike</dt><dd>${esc(m.trendi || "–")} <span class="mono">(${fmt(m["liike_keskim.R"] ?? 0, 2)} keskim. vaihteluväliä / 10 min)</span></dd>
+      <dt>Perustuu kynttilöihin</dt><dd class="mono">kohde ${used.kynttila ? hhmmss(used.kynttila).slice(0,5) : "–"}${used.edellinen ? " · edellinen " + hhmmss(used.edellinen).slice(0,5) : ""} · trendi ${used.trendi_alkaen ? hhmmss(used.trendi_alkaen).slice(0,5) : "–"}–${used.ikkuna_loppuu ? hhmmss(used.ikkuna_loppuu).slice(0,5) : "–"} · keskiarvot ${used.keskiarvot_alkaen ? hhmmss(used.keskiarvot_alkaen).slice(0,5) : "–"}–${used.ikkuna_loppuu ? hhmmss(used.ikkuna_loppuu).slice(0,5) : "–"}</dd>
+      <dt>Volyymi</dt><dd class="mono">${fmt(o.volume_ratio, 2)} × keskiarvo</dd>
+    </dl>
+    <div class="scroll"><table><thead><tr><th>Ehto</th><th class="num">Arvo</th><th>Raja</th><th></th></tr></thead><tbody>${conds}</tbody></table></div>
+  </div>`;
+}
+
+function keysLine(exp, got) {
+  const e = new Set(exp), g = new Set(got), all = [...new Set([...exp, ...got])];
+  if (!all.length) return `<span class="muted">ei kuviota</span>`;
+  return `<span class="keys">${all.map(k => `<span class="key ${e.has(k) && !g.has(k) ? "miss" : !e.has(k) && g.has(k) ? "extra" : ""}">${esc(nm(k))}</span>`).join("")}</span>`;
+}
+
+const same = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+
+function caseCard(c) {
+  const okDef = same(c.maaritelma, c.tunnistettu);
+  const okLit = same(c.kirjallisuus, c.tunnistettu);
+  const verdict = okDef ? (okLit ? `<span class="verdict ok">Täsmää</span>` : `<span class="verdict ok">Täsmää määritelmään</span> <span class="verdict bad">poikkeaa kirjallisuudesta</span>`) : `<span class="verdict bad">Poikkeama</span>`;
+  const prevT = (c.havainnot || []).map(o => (o.candles_used || {}).edellinen).find(Boolean);
+  let left = chart(c.historia, c.kohde, { prevT, label: c.kuvaus });
+  let ticks = "";
+  if (c.vaiheet && c.vaiheet.length) {
+    ticks = `<div class="ticks">` + c.vaiheet.map(s => `<div class="tick"><div><b class="mono">${s.sekunti} s</b> <span class="pill ${s.tila === "vahvistettu" ? "vahv" : "kesk"}">${s.tila.toUpperCase()}</span></div>${chart(c.historia.slice(-6), s.kynttila, { label: s.sekunti + " s" })}<div>odotettu: ${keysLine(s.odotettu, s.odotettu)}</div><div>botti: ${keysLine(s.odotettu, s.tunnistettu)}</div>${s.ei_vahvistunut.length ? `<div class="muted">ei vahvistunut: ${esc(s.ei_vahvistunut.map(nm).join(", "))}</div>` : ""}</div>`).join("") + `</div>`;
+  }
+  const obs = c.vaiheet && c.vaiheet.length
+    ? c.vaiheet.flatMap(s => s.havainnot).map(obsBlock).join("")
+    : (c.havainnot || []).map(obsBlock).join("");
+  const vm = !c.havainnot.length && !(c.vaiheet || []).length
+    ? `<details><summary>Näkymän mittaus kynttilästä (botti ei tunnistanut kuviota)</summary><div class="scroll"><table><tbody>${viewMeasure(c.historia, c.kohde).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${fmt(v)}</td></tr>`).join("")}</tbody></table></div></details>` : "";
+  return `<article class="card ${okDef ? "" : "mismatch"}" data-l="${c.luokka}" data-keys="${[...c.maaritelma, ...c.kirjallisuus, ...c.tunnistettu].join(" ")}" data-diff="${okDef && okLit ? 0 : 1}">
+    <div style="display:grid;gap:8px;min-width:0">${left}${ticks}</div>
+    <div style="display:grid;gap:8px;min-width:0;align-content:start">
+      <div class="card-head"><span class="cid">${esc(c.id)}</span><span class="tag ${c.luokka}">${c.luokka}</span>${verdict}</div>
+      <p>${esc(c.kuvaus)}</p>
+      <dl class="kv">
+        <dt>Määritelmän mukaan</dt><dd>${keysLine(c.maaritelma, c.maaritelma)}</dd>
+        <dt>Kirjallisuuden mukaan</dt><dd>${keysLine(c.kirjallisuus, c.kirjallisuus)}</dd>
+        <dt>Botti tunnisti</dt><dd>${keysLine(c.maaritelma, c.tunnistettu)}</dd>
+        <dt>Edeltävä historia</dt><dd>${esc(c.trendi)} · ${c.historia.length} kynttilää</dd>
+      </dl>
+      ${c.korjaus ? `<div class="fix"><b>Luokittelijan korjaus:</b> ${esc(c.korjaus)}</div>` : ""}
+      ${obs}${vm}
+    </div></article>`;
+}
+
+function realCard(r) {
+  const o = r.havainnot[0];
+  return `<article class="card" data-l="R" data-keys="${r.avain}" data-diff="0">
+    <div style="min-width:0">${chart(r.historia, r.kohde, { prevT: (o.candles_used || {}).edellinen, label: r.id })}</div>
+    <div style="display:grid;gap:8px;min-width:0;align-content:start">
+      <div class="card-head"><span class="cid">${esc(r.id)}</span><span class="tag">oikea data</span><span class="verdict na">ei luokiteltu</span></div>
+      <p class="muted">${esc(nm(r.avain))}: jaksolla A yhteensä ${r.maara_jaksolla.toLocaleString("fi-FI")} vahvistettua. Tarkista kaaviosta, näyttääkö kynttilä kuviolta.</p>
+      ${obsBlock(o)}
+    </div></article>`;
+}
+
+document.getElementById("cards").innerHTML = cases.map(caseCard).join("") + D.oikea_otos.map(realCard).join("");
+
+// --- suodattimet -------------------------------------------------------------
+const keySel = document.getElementById("f-key");
+[...new Set([...cases.flatMap(c => [...c.maaritelma, ...c.kirjallisuus, ...c.tunnistettu]), ...D.oikea_otos.map(r => r.avain)])]
+  .sort((a, b) => nm(a).localeCompare(nm(b), "fi")).forEach(k => keySel.insertAdjacentHTML("beforeend", `<option value="${k}">${esc(nm(k))}</option>`));
+let cat = "all";
+function apply() {
+  const k = keySel.value, diff = document.getElementById("f-diff").checked;
+  let n = 0;
+  document.querySelectorAll(".card").forEach(el => {
+    const show = (cat === "all" || el.dataset.l === cat) && (!k || el.dataset.keys.split(" ").includes(k)) && (!diff || el.dataset.diff === "1");
+    el.hidden = !show; if (show) n++;
+  });
+  document.getElementById("count").textContent = n + " näkyvissä";
+}
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  cat = b.dataset.f; document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === b));
+  apply();
+}));
+keySel.addEventListener("change", apply);
+document.getElementById("f-diff").addEventListener("change", apply);
+apply();
+</script>

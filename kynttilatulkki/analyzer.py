@@ -51,6 +51,8 @@ class SymbolAnalyzer:
             if elapsed < self.min_elapsed:
                 return []   # minuutin alussa muoto on vielä pelkkää kohinaa
             obs = detect(prev, candle, self.params, elapsed_frac=elapsed)
+            for o in obs:
+                o.detected_at = now_ms if now_ms is not None else 0
             keys = {o.key for o in obs}
             if keys != self._provisional_keys.get(candle.open_time, set()):
                 self._provisional_keys[candle.open_time] = keys
@@ -62,6 +64,8 @@ class SymbolAnalyzer:
 
         # Suljettu kynttilä -> vahvistettu havainto
         obs = detect(prev, candle, self.params)
+        for o in obs:   # vahvistus syntyy aikaisintaan kynttilän sulkeutuessa
+            o.detected_at = max(now_ms or 0, candle.open_time + 60_000)
         ctx = build_context(prev, self.params)
         text = describe_candle(candle, ctx) if ctx else f"lämmittely: {len(prev)}/{self.params.min_history} kynttilää historiaa"
         events.append(Event("candle", candle, [], text))

@@ -5,3 +5,5 @@ logs/
 data/
 results/demo_*
 state/
+validointi/tulokset.json
+validointi/nakyma.html
