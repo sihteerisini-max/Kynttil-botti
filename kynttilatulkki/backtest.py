@@ -186,6 +186,7 @@ def main(argv=None) -> None:
         json.dump({"ruleset": rules.version, "start": iso(start), "end": iso(end), "symbols": symbols,
                    "half_spreads": half_spreads, "demo": a.demo}, f, indent=2)
     print(f"\nTulokset: {out}/")
+    return eng
 
 
 if __name__ == "__main__":

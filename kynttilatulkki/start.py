@@ -13,18 +13,19 @@ import sys
 
 def main() -> None:
     days = os.environ.get("BACKTEST_DAYS")
-    rules = os.environ.get("RULES", "v1")
+    rules = os.environ.get("RULES", "v1.1,v2")
     if days:
         from . import backtest
-        args = ["--rules", rules, "--days", days, "--quiet"]
-        if os.environ.get("SYMBOLS", "").startswith("PF_"):
-            args += ["--symbols", os.environ["SYMBOLS"]]
-        else:
-            args += ["--top", os.environ.get("TOP", "5")]
-        try:
-            backtest.main(args)
-        except Exception as e:   # historiatestin virhe ei estä varsinaista ajoa
-            print(f"Historiatesti epäonnistui: {e}", file=sys.stderr, flush=True)
+        for v in [x.strip() for x in rules.split(",") if x.strip()]:
+            args = ["--rules", v, "--days", days, "--quiet"]
+            if os.environ.get("SYMBOLS", "").startswith("PF_"):
+                args += ["--symbols", os.environ["SYMBOLS"]]
+            else:
+                args += ["--top", os.environ.get("TOP", "5")]
+            try:
+                backtest.main(args)
+            except Exception as e:   # historiatestin virhe ei estä varsinaista ajoa
+                print(f"Historiatesti epäonnistui: {e}", file=sys.stderr, flush=True)
     mode = os.environ.get("MODE", "observe").lower()
     if mode == "paper":
         from . import paper_live

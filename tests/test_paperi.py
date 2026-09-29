@@ -198,3 +198,42 @@ class TestEiTulevaisuustietoa(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestKorjattuKulumalli(unittest.TestCase):
+    R11 = RULESETS["v1.1"]
+
+    def test_kaava(self):
+        from kynttilatulkki.strategy import estimate_costs
+        ce = estimate_costs(self.R11, "long", 100.0, 99.0, HS)
+        self.assertAlmostEqual(ce.entry_fill, 100 * (1 + HS + 0.0002))
+        self.assertAlmostEqual(ce.stop_fill, 99 * (1 - HS - 0.0005))
+        self.assertAlmostEqual(ce.price_risk_r, ce.entry_fill - 99.0)
+        self.assertAlmostEqual(ce.fees, 0.0005 * (ce.entry_fill + ce.stop_fill))
+        # avauksen spread/liukuma EI sisälly tappioon toista kertaa
+        self.assertAlmostEqual(ce.loss_at_stop, ce.entry_fill - ce.stop_fill + ce.fees + ce.funding)
+        self.assertAlmostEqual(ce.total_cost, ce.entry_friction + ce.exit_friction + ce.fees + ce.funding)
+
+    def test_stop_tappio_on_riskibudjetti(self):
+        e = engine(self.R11)
+        e.pending["PF_TST"] = sig("long", 99.0)
+        e.on_bar_open("PF_TST", T0, 100.0)
+        p = e.positions["PF_TST"]
+        self.assertAlmostEqual(p.risk_budget, 50.0)
+        e.on_bar_close(c(T0, 100, 100.1, 98.0, 98.5))
+        tr = e.trades[0]
+        # ero vain siitä, että funding-arvio kattaa 15 min mutta positio oli auki 1 min
+        unused_funding = p.qty * p.entry_price * self.R11.fallback_funding_per_hour * 14 / 60
+        self.assertAlmostEqual(tr.net_pnl, -50.0 + unused_funding, places=3)
+        self.assertAlmostEqual(tr.budget_multiple, -1.0, places=3)
+
+    def test_v2_suodatin_tiukempi(self):
+        from kynttilatulkki.strategy import estimate_costs
+        ce = estimate_costs(RULESETS["v2"], "long", 100.0, 99.5, HS)
+        ratio = ce.price_risk_r / ce.total_cost
+        self.assertTrue(2 <= ratio < 4)      # v1.1 hyväksyy, v2 hylkää
+        for key, opened in (("v1.1", True), ("v2", False)):
+            e = engine(RULESETS[key])
+            e.pending["PF_TST"] = sig("long", 99.5)
+            e.on_bar_open("PF_TST", T0, 100.0)
+            self.assertEqual("PF_TST" in e.positions, opened, key)

@@ -16,7 +16,7 @@ from typing import Callable
 from .analyzer import SymbolAnalyzer
 from .models import Candle
 from .patterns import build_context
-from .strategy import Ruleset, Signal, make_signal
+from .strategy import Ruleset, Signal, estimate_costs, make_signal
 
 DAY = 86_400_000
 HOUR = 3_600_000
@@ -43,6 +43,7 @@ class Position:
     reason: str
     signal_time: int
     bars_held: int = 0
+    risk_budget: float = 0.0   # USD: suunniteltu kokonaistappio stopissa (kulut mukana)
 
 
 @dataclass
@@ -70,6 +71,8 @@ class Trade:
     net_pnl: float
     r_multiple: float
     equity_after: float
+    risk_budget: float = 0.0          # suunniteltu kokonaistappio stopissa (USD)
+    budget_multiple: float = 0.0      # nettotulos / riskibudjetti (−1 = täysi suunniteltu tappio)
 
 
 @dataclass
@@ -203,27 +206,41 @@ class PaperEngine:
 
         hs = self.half_spread_fn(sig.symbol, t)
         long = sig.side == "long"
-        entry = price * (1 + hs + r.slippage) if long else price * (1 - hs - r.slippage)
-        if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
-            return self._skip(sig, t, "avaushinta jo stopin väärällä puolella")
-        risk_r = abs(entry - sig.stop)
-        cost_unit = entry * r.round_trip_cost(hs)
-        if risk_r < r.min_r_to_cost * cost_unit:
-            return self._skip(sig, t, f"kulusuodatin: riski {risk_r / entry:.3%} < {r.min_r_to_cost:g} x kulut {cost_unit / entry:.3%}")
         eq = s.equity
-        qty = eq * r.risk_per_trade / (risk_r + cost_unit)
+        budget = eq * r.risk_per_trade
+        if r.cost_model == "korjattu":
+            ce = estimate_costs(r, sig.side, price, sig.stop, hs)
+            entry, risk_r = ce.entry_fill, ce.price_risk_r
+            if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
+                return self._skip(sig, t, "avaushinta jo stopin väärällä puolella")
+            if risk_r < r.min_r_to_cost * ce.total_cost:
+                return self._skip(sig, t, f"kulusuodatin: R {risk_r / entry:.3%} < {r.min_r_to_cost:g} x kulut {ce.total_cost / entry:.3%}")
+            qty = budget / ce.loss_at_stop
+        else:   # alkuperäinen v1 (säilytetään jakson A toistettavuuden vuoksi)
+            entry = price * (1 + hs + r.slippage) if long else price * (1 - hs - r.slippage)
+            if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
+                return self._skip(sig, t, "avaushinta jo stopin väärällä puolella")
+            risk_r = abs(entry - sig.stop)
+            cost_unit = entry * r.round_trip_cost(hs)
+            if risk_r < r.min_r_to_cost * cost_unit:
+                return self._skip(sig, t, f"kulusuodatin: riski {risk_r / entry:.3%} < {r.min_r_to_cost:g} x kulut {cost_unit / entry:.3%}")
+            qty = budget / (risk_r + cost_unit)
+        full_qty = qty
         qty = min(qty, r.max_notional_per_pos * eq / entry,
                   max(0.0, r.max_notional_total * eq - self.open_notional()) / entry)
         if qty <= 0:
             return self._skip(sig, t, "nimellisarvon katto täynnä")
+        budget *= qty / full_qty
         target = entry + r.target_r * risk_r if long else entry - r.target_r * risk_r
         pos = Position(s.next_id, sig.symbol, sig.side, t, price, entry, qty, sig.stop, target,
-                       risk_r, qty * entry * r.taker_fee, hs, sig.reason(), sig.candle.open_time)
+                       risk_r, qty * entry * r.taker_fee, hs, sig.reason(), sig.candle.open_time,
+                       risk_budget=budget)
         s.next_id += 1
         self.positions[sig.symbol] = pos
         self.log(f"[{sig.symbol} {ts(t)}] AVAUS #{pos.id} {sig.side.upper()} @ {entry:.6g} "
                  f"(avaus {price:.6g} + spread/liukuma) | koko {qty:.6g} = {qty * entry:,.0f} USD | "
-                 f"stop {sig.stop:.6g} | tavoite {target:.6g} | riski {qty * risk_r:,.2f} USD\n"
+                 f"stop {sig.stop:.6g} | tavoite {target:.6g} | hintariski {qty * risk_r:,.2f} USD, "
+                 f"riskibudjetti (sis. kulut) {budget:,.2f} USD\n"
                  f"      peruste: {sig.reason()}")
         self._event("open", **asdict(pos))
 
@@ -271,14 +288,15 @@ class PaperEngine:
                    round(pos.entry_price, 8), ts(t), round(exit_price, 8), pos.qty, round(notional, 2),
                    pos.stop, round(pos.target, 8), pos.reason, reason, pos.bars_held,
                    round(gross, 4), round(fees, 4), round(funding, 4), round(spread_slip, 4),
-                   round(net, 4), round(net / (pos.qty * pos.risk_r), 3), round(s.equity, 2))
+                   round(net, 4), round(net / (pos.qty * pos.risk_r), 3), round(s.equity, 2),
+                   round(pos.risk_budget, 4), round(net / pos.risk_budget, 3) if pos.risk_budget else 0.0)
         self.trades.append(tr)
         sign = "+" if net >= 0 else ""
         self.log(f"[{pos.symbol} {ts(t)}] SULKU #{pos.id} {pos.side.upper()} @ {exit_price:.6g} – syy: {reason}\n"
                  f"      avausperuste: {pos.reason}\n"
                  f"      brutto {gross:+,.2f} | palkkiot −{fees:,.2f} | funding {-funding:+,.4f} | "
                  f"(spread+liukuma sisältyy hintoihin ≈ {spread_slip:,.2f}) | NETTO {sign}{net:,.2f} USD "
-                 f"({tr.r_multiple:+.2f} R) | pääoma {s.equity:,.2f}")
+                 f"({tr.r_multiple:+.2f} R, {tr.budget_multiple:+.2f} x riskibudjetti) | pääoma {s.equity:,.2f}")
         for n_ in notes:
             self.log(n_)
         self._event("close", **asdict(tr))
@@ -304,7 +322,8 @@ def summarize(trades: list[Trade], engine: PaperEngine) -> str:
         gl = -sum(t.net_pnl for t in trades if t.net_pnl <= 0)
         lines += [
             f"Voittoja {len(wins)}/{n} ({len(wins) / n:.0%}) | nettotulos {sum(t.net_pnl for t in trades):+,.2f} USD "
-            f"| keskim. {sum(t.r_multiple for t in trades) / n:+.3f} R/kauppa | profit factor "
+            f"| keskim. {sum(t.r_multiple for t in trades) / n:+.3f} R (hinta) / "
+            f"{sum(t.budget_multiple for t in trades) / n:+.3f} x riskibudjetti per kauppa | profit factor "
             f"{(gp / gl) if gl else float('inf'):.2f}",
             f"Bruttotulos {sum(t.gross_pnl for t in trades):+,.2f} | palkkiot −{sum(t.fees for t in trades):,.2f} | "
             f"funding {-sum(t.funding for t in trades):+,.2f} | spread+liukuma (hinnoissa) ≈ "

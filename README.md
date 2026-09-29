@@ -80,7 +80,8 @@ käynnistyskomennon ja uudelleenkäynnistyksen kaatumisen jälkeen.
 # Vaihe 2: paperikauppa (Kraken Derivatives -perpetualit)
 
 **Vain paperikauppaa – koodi ei lähetä toimeksiantoja eikä käytä API-avaimia.**
-Säännöt: [`docs/SAANNOT_v1.md`](docs/SAANNOT_v1.md) (lukittu ennen ensimmäistä testiä).
+Säännöt: [`docs/SAANNOT_v1.md`](docs/SAANNOT_v1.md), [`docs/SAANNOT_v2.md`](docs/SAANNOT_v2.md) (v1.1 ja v2, korjattu kulumalli).
+Arviointi: `python -m kynttilatulkki.evaluate` (ks. SAANNOT_v2.md kohta 6).
 
 ```bash
 # historiatesti oikealla Kraken-datalla (viimeiset 7 päivää, 5 vaihdetuinta perpetualia)
@@ -88,7 +89,7 @@ python -m kynttilatulkki.backtest --rules v1 --top 5 --days 7 --quiet
 # tietty jakso ja markkinat
 python -m kynttilatulkki.backtest --rules v1 --symbols PF_XBTUSD,PF_ETHUSD --start 2026-09-20 --end 2026-09-27
 # live-paperikauppa
-python -m kynttilatulkki.paper_live --rules v1 --top 5
+python -m kynttilatulkki.paper_live --rules v1.1,v2 --top 5   # kaksi rinnakkaista paperitiliä
 ```
 
 Historiatesti tallentaa datan kansioon `data/` ja tulokset kansioon
@@ -109,9 +110,9 @@ Historiatesti tallentaa datan kansioon `data/` ja tulokset kansioon
 |---|---|---|
 | `MODE` | `observe` (oletus) / `paper` | havainnointi (Binance) tai paperikauppa (Kraken) |
 | `BACKTEST_DAYS` | esim. `7` | aja ensin historiatesti, tulos Deploy Logsiin |
-| `RULES` | `v1` | sääntöversio |
+| `RULES` | `v1.1,v2` | sääntöversiot – useampi = rinnakkaiset paperitilit |
 | `SYMBOLS` | esim. `PF_XBTUSD,PF_ETHUSD` | paperikaupan markkinat (muuten `TOP`) |
-| `STATE_PATH` | `/data/paper_state.pkl` | paperikaupan tila – pysyvä vain Railway Volumella |
+| `STATE_DIR` | `/data/state` | paperitilien tila (`paper_<versio>.pkl`) – pysyvä vain Railway Volumella |
 | `LOG_DIR` | `/data/logs` | kauppa- ja tapahtumaloki |
 | `RESET_STATE` | `1` | aloita alusta (esim. maksimipudotuksen pysäytyksen jälkeen), poista sitten |
 
