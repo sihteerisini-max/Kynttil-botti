@@ -1,0 +1,20 @@
+{
+  "ruleset": "v1",
+  "start": "2026-09-22T18:43",
+  "end": "2026-09-29T18:43",
+  "symbols": [
+    "PF_XBTUSD",
+    "PF_ETHUSD",
+    "PF_SOLUSD",
+    "PF_ZECUSD",
+    "PF_XRPUSD"
+  ],
+  "half_spreads": {
+    "PF_XBTUSD": 5.977464957111689e-06,
+    "PF_ETHUSD": 1.855666276975061e-05,
+    "PF_SOLUSD": 8.386447500836975e-05,
+    "PF_ZECUSD": 0.0004857643099526117,
+    "PF_XRPUSD": 3.3332222259254355e-05
+  },
+  "demo": false
+}
