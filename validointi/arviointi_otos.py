@@ -27,9 +27,12 @@ ROOT = os.path.dirname(HERE)
 WINDOW = 30
 
 # Kirjallisuuden sanalliset määritelmät (docs/LAHTEET.md). Näytetään arvioinnissa.
-DOWN, UP = "Edeltävä hintaliike on laskeva.", "Edeltävä hintaliike on nouseva."
-NOT_SMALL = "Kynttilä ei ole selvästi pienempi kuin edeltävät kynttilät."
-LONG = "Kynttilä on pitkä verrattuna edeltäviin kynttilöihin."
+DOWN, UP = ("Edeltävien 10 kynttilän (tummempi alue) hintaliike on laskeva.",
+            "Edeltävien 10 kynttilän (tummempi alue) hintaliike on nouseva.")
+NOT_SMALL = ("Arvioitavan kynttilän vaihteluväli (ylin − alin) ei ole selvästi pienempi kuin "
+             "vertailujakson (20 edeltävää kynttilää, vaalea alue) keskimääräinen vaihteluväli.")
+LONG = ("Arvioitavan kynttilän vaihteluväli on selvästi suurempi kuin vertailujakson "
+        "(20 edeltävää kynttilää, vaalea alue) keskimääräinen vaihteluväli.")
 def _d(nimi, n, muoto, liike, koko, lahde):
     return {"nimi": nimi, "kynttiloita": n, "muoto": muoto, "liike": liike, "koko": koko, "lahde": lahde}
 DEFS = {
@@ -102,12 +105,12 @@ def main(argv=None):
         g2 = [r for r in pos if len({r[3][v][k]["tausta"] for v in versions}) > 1]
         g3 = [r for r in pos if not r[3][v0][k]["tausta"]]
         picks, used = [], set()
-        for g in (g1, g2, g3) + (pos,) * a.n:
+        for g, tag in ((g1, "botin_tunnistama"), (g2, "t1_t2_erimielisyys"), (g3, "botin_tunnistama")) + ((pos, "botin_tunnistama"),) * a.n:
             if len(picks) >= a.n:
                 break
             cand = [r for r in g if (r[0], r[1]) not in used]
             if cand:
-                r = rnd.choice(cand); used.add((r[0], r[1])); picks.append(("botti", r))
+                r = rnd.choice(cand); used.add((r[0], r[1])); picks.append((tag, r))
         picks += [("satunnainen", r) for r in rnd.sample(rows, a.n)]
         for src, r in picks:
             sym, i, cs, comp = r
@@ -119,6 +122,7 @@ def main(argv=None):
         it["id"] = f"{a.tag}{n:03d}"
     data = {"sarja": a.tag, "maaritelmat": DEFS, "tapaukset": items, "kysymykset": QUESTIONS,
             "versiot": versions, "ensisijainen": v0,
+            "vertailu": {"koko": TUNNISTUS[v0].avg_window, "liike": TUNNISTUS[v0].trend_window},
             "lahteet": {"SC": "StockCharts ChartSchool: Candlestick Pattern Dictionary",
                         "TB": "Thomas N. Bulkowski, ThePatternSite.com – Identification Guidelines"}}
     blob = json.dumps(data, ensure_ascii=False, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")

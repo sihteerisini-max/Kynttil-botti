@@ -9,10 +9,19 @@ Sarjassa A taustaehdot kysyttiin yhtenä kysymyksenä (edeltävä liike ja suhte
 
 | | Oikein tunnistettu | Väärä hälytys | Löytämättä | Oikein hylätty | Epäselvä (botti kyllä/ei) |
 |---|---|---|---|---|---|
-| Yhteensä | 34 | 1 | 0 | 30 | 2 / 1 |
+| Yhteensä | 33 | 1 | 0 | 29 | 2 / 1 |
 
-* Ainoa väärä hälytys: A015 (vasara). Alavarjo on 2,17 × runko, joten raja 2 × täyttyy niukasti,
-  ja runko on 32 % vaihteluvälistä.
+(Korjattu 30.9.: ensimmäisessä raportissa yhteissummat oli laskettu käsin väärin (34 ja 30), jolloin
+summaksi tuli 68. Oikeat luvut, 33 + 1 + 0 + 29 + 3 = 66, on laskettu uudelleen tallennetuista
+arvioista.)
+
+* Ainoa väärä hälytys: A015 (vasara). **Ei luokitella botin virheeksi.** Raakadatasta
+  (PF_ZECUSD, avaus 1534,91, ylin 1535,26, alin 1534,15, päätös 1535,26) alavarjo on 0,76 ja
+  runko 0,35, eli 2,17 × runko. Arviointisivu näytti yli 1 000 dollarin hinnat yhdellä
+  desimaalilla (1534,9 / 1535,3 / 1534,2 / 1535,3), jolloin suhteeksi tulee 1,75 ×. Ero johtuu
+  näytön pyöristyksestä, joten arvio perustui virheelliseen lukuun. Pyöristys muutti mittasuhteita
+  merkittävästi myös tapauksissa A028 ja A044 (molemmat ZEC). Niissä arvio ja botti olivat
+  samaa mieltä muodosta. Sarjassa B hinnat näytetään täydellä tarkkuudella.
 * Satunnaisista 33 kynttilästä arvioit kuvioksi vain 2, ja botti löysi molemmat. Löytämättä
   jääneiden arvioimiseen aineisto on siis heikko: satunnaisissa minuuteissa oikeita kuvioita on
   vähän.
@@ -46,7 +55,8 @@ Sarjassa A taustaehdot kysyttiin yhtenä kysymyksenä (edeltävä liike ja suhte
 
 ## Johtopäätös ja määritelmämuutos T2
 
-* Muotoehdot vastaavat arvioitasi hyvin: 1 väärä hälytys 35:stä.
+* Muotoehdot vastaavat arvioita hyvin: 1 väärä hälytys 34 selvästä kyllä-tapauksesta, ja sekin
+  johtui näytön pyöristyksestä.
 * Selvin ja johdonmukaisin erimielisyys on suhteellisen koon alaraja. Siitä tehdään yksi muutos:
   **T2: kynttilää ei tulkita, jos sen vaihteluväli on alle 0,6 × edeltävien 20 keskiarvo**
   (T1: 0,3 ×). Muita ehtoja ei muuteta.
@@ -60,6 +70,13 @@ Sarjassa A taustaehdot kysyttiin yhtenä kysymyksenä (edeltävä liike ja suhte
 
 ## Rajoitukset
 
+* **Arviot eivät ole riippumattoman ihmisasiantuntijan arvioita.** Jesse teki ne ChatGPT:n
+  avustamana. Tulokset kertovat siis yhden ihmisen ja kielimallin yhteisestä tulkinnasta.
+* **Vertailujakso ei ollut määritelty.** Suhteellisen koon ja edeltävän liikkeen silmämääräinen
+  arvio ei aina käyttänyt samaa jaksoa kuin botti (20 kynttilää koolle ja 10 kynttilää liikkeelle).
+  Sivu näytti 30 kynttilää merkitsemättä vertailujaksoa. Havaittu koon "raja" (noin 0,6 ×) on
+  siksi epätarkka. Sarjassa B jaksot merkitään kaavioon.
+* **Näytön pyöristys:** kolmessa ZEC-tapauksessa hinnat näytettiin liian karkeasti (ks. yllä).
 * Yksi arvioija ja 66 tapausta. Kuviota kohden on vain 6 tapausta.
 * Sarjassa A liike ja koko kysyttiin yhdessä, joten syy on päätelty arvoista eikä kysytty
   erikseen. Sarjassa B ne kysytään erikseen.
