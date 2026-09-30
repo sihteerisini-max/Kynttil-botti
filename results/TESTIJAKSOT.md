@@ -8,7 +8,7 @@ käytetä myöhempien versioiden hyvyyden todisteena.
 | **A** | 2026-09-22 18:43 – 2026-09-29 18:43 | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | v1:n ensimmäinen historiatesti. **Katsottu** – ei enää puolueeton millekään versiolle. |
 | **B** | ei käynnistetty (Jessen päätös 30.9.2026) | – | Suunniteltu v1.1 vs v2 live-paperivertailu. Versiot pysyvät lukittuina. |
 | arviointidata | 2026-09-29 18:43 – 2026-09-30 14:23 | samat 5 | Tunnistuksen sokkoarvioinnit, sarjat B ja C. **Katsottu** – ei kannattavuustestiin. |
-| **T2-testi** | alkaa v1.1-T2- ja v2-T2-tilien todellisesta aloitushetkestä (loki: `TESTIJAKSO [...]`) → +28 vrk kiinteästi | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | Eteenpäin kerättävä paperitesti, lukittu 30.9.2026 (`docs/TESTI_T2.md`). **Kirjaa alku- ja loppuhetki tähän käynnistyksen jälkeen.** |
+| **T2-testi** | **2026-09-30 15:21 UTC – 2026-10-28 15:21 UTC** (kiinteä 28 vrk; molemmat tilit samasta hetkestä, Railway-loki `TESTIJAKSO [...]`, commit 768194a) | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | Eteenpäin kerättävä paperitesti, lukittu 30.9.2026 (`docs/TESTI_T2.md`). Käynnistetty 30.9.2026 puhtaalta tilalta (Volume `/data`). |
 
 ## Jakso A – v1 (ajettu 29.9.2026, Jessen koneella)
 
