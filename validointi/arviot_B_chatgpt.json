@@ -1,0 +1,399 @@
+{
+ "_tapa": "tekoäly (ChatGPT), numeerinen tekstimuotoinen data",
+ "B001": {
+  "muoto": "epaselva",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko 13 % vaihteluvälistä on dojin rajatapaus, koko vain 0,56 kertaa keskiarvo."
+ },
+ "B002": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "epaselva",
+  "perustelu": "Ylävarjo 2,15 kertaa runko, liike nouseva, koko 0,66 kertaa keskiarvo on tulkinnanvarainen."
+ },
+ "B003": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Runko vain 8 % vaihteluvälistä, dojimainen kynttilä, alavarjokin huomattava. Edeltävä liike laskee."
+ },
+ "B004": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Edellinenkin kynttilä laskee, joten peittävän kuvion värit eivät täyty. Liike laskeva."
+ },
+ "B005": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Hyvin ohut runko huipussa, hallitseva alavarjo. Koko vain 0,55 kertaa keskiarvo."
+ },
+ "B006": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Avaus ja päätös pohjassa, pelkkä ylävarjo. Koko vain 0,29 kertaa keskiarvo."
+ },
+ "B007": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo puuttuu kokonaan. Edeltävä liike kääntyy selvään nousuun, koko riittävä."
+ },
+ "B008": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Ylävarjo hallitsee kynttilää. Vaihteluväli 1,21 kertaa keskiarvo, selvän suuruuseron rajatapaus."
+ },
+ "B009": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Kynttilä nousee ja sisältää pitkän alavarjon. Vaihteluväli keskiarvoa pienempi."
+ },
+ "B010": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Laskeva runko peittää edellisen. Liikejakson nousu vaihtuu laskuksi ja palautumiseksi."
+ },
+ "B011": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Laskeva runko peittää edellisen, liike nouseva. Koko vain 0,56 kertaa keskiarvo."
+ },
+ "B012": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Ylävarjo viisinkertainen runkoon, alavarjo puuttuu, liike nouseva. Koko noin puolet keskiarvosta."
+ },
+ "B013": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Molemmat kynttilät laskevat, joten nouseva peittävä kuvio puuttuu. Edeltävä liike laskeva."
+ },
+ "B014": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Laskeva varjoton kynttilä, mutta vaihteluväli vain 0,34 kertaa keskiarvo."
+ },
+ "B015": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko täyttää koko kynttilän, ylävarjo puuttuu. Koko vain 0,18 kertaa keskiarvo."
+ },
+ "B016": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Laskeva runko peittää edellisen nousevan rungon. Liike selvästi nouseva, koko riittävä."
+ },
+ "B017": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Suuri laskeva runko, alavarjo puuttuu. Vaihteluväli keskiarvoa suurempi."
+ },
+ "B018": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Ylävarjo muodostaa 22 % vaihteluvälistä. Koko keskiarvon tasolla, ei selvästi suurempi."
+ },
+ "B019": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Hyvin ohut runko lähellä pohjaa, pitkä ylävarjo. Koko vain 0,53 kertaa keskiarvo."
+ },
+ "B020": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Ylävarjo vain 1,33 kertaa runko, liike laskeva. Koko noin puolet keskiarvosta."
+ },
+ "B021": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Kynttilä nousee ja molemmat varjot ovat huomattavia. Vaihteluväli ei ylitä keskiarvoa."
+ },
+ "B022": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Alavarjo 2,5 kertaa runko, ylävarjo puuttuu, liike laskeva. Koko 0,56 kertaa keskiarvo."
+ },
+ "B023": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Hyvin ohut runko pohjassa, pitkä ylävarjo. Koko 0,73 kertaa keskiarvo on tulkinnanvarainen."
+ },
+ "B024": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "ei",
+  "perustelu": "Edellinen kynttilä nousee. Liikejakso poukkoilee ja palautuu, koko noin puolet keskiarvosta."
+ },
+ "B025": {
+  "muoto": "epaselva",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Pitkä ylävarjo, mutta 14 % runko jättää dojirajan epäselväksi. Liike laskee, koko pieni."
+ },
+ "B026": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Kynttilöiden suunnat päinvastaiset kuin vaaditaan. Liikejakso palaa lähtötasolle, koko pieni."
+ },
+ "B027": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Nouseva runko peittää edellisen. Loppu laskee, mutta koko liikejakso on vaihteleva."
+ },
+ "B028": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Lähes olematon runko huipussa, pitkä alavarjo, ei ylävarjoa. Koko lähellä keskiarvoa."
+ },
+ "B029": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Ylävarjo nelinkertainen runkoon, alavarjo puuttuu, liike laskeva. Koko vain 0,58 kertaa keskiarvo."
+ },
+ "B030": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko vain 4 % vaihteluvälistä. Koko vain 0,40 kertaa keskiarvo."
+ },
+ "B031": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko noin 5 % vaihteluvälistä. Koko 0,83 kertaa keskiarvo, ei selvästi pienempi."
+ },
+ "B032": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Kynttilä laskee, joten nousevan marubozun suunta väärä. Vaihteluväli selvästi keskiarvoa suurempi."
+ },
+ "B033": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Laskeva varjoton kynttilä, mutta vaihteluväli ei ole keskiarvoa suurempi."
+ },
+ "B034": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Alavarjo runkoa pidempi. Vaihteluväli keskiarvoa pienempi, joten marubozun kokoehto puuttuu."
+ },
+ "B035": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Nouseva varjoton kynttilä. Koko vain 1,04 kertaa keskiarvo, ei selvästi suurempi."
+ },
+ "B036": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Ylävarjo 2,11 kertaa runko, alavarjo puuttuu. Selvä nousu ja riittävä koko."
+ },
+ "B037": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Nouseva runko peittää edellisen laskevan rungon. Selvä edeltävä lasku, koko lähellä keskiarvoa."
+ },
+ "B038": {
+  "muoto": "epaselva",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Ylävarjon vähäisyys tulkinnanvarainen. Liikejakso laskee ja palautuu lähes lähtötasolle, koko riittävä."
+ },
+ "B039": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Alavarjo viisinkertainen runkoon, ylävarjo puuttuu, nousuliike selvä. Koko vain 0,57 kertaa keskiarvo."
+ },
+ "B040": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Runko ei peitä edellistä. Liikejakson loppu heikkenee, eikä selvää nousua ole."
+ },
+ "B041": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko täyttää kynttilän, alavarjo puuttuu. Koko 0,76 kertaa keskiarvo, ei selvästi pienempi."
+ },
+ "B042": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo kuusinkertainen runkoon, ylävarjo puuttuu. Edeltävä lasku selvä ja koko riittävä."
+ },
+ "B043": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Arvioitava kynttilä laskee ja edellinen nousee. Edeltävä liike nouseva, koko pieni."
+ },
+ "B044": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko täyttää koko vaihteluvälin, joten doji puuttuu. Koko lähellä keskiarvoa."
+ },
+ "B045": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Nouseva kynttilä, ylävarjo hyvin lyhyt. Koko vain 0,45 kertaa keskiarvo."
+ },
+ "B046": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Alavarjo 2,2 kertaa runko, ylävarjo puuttuu, liike laskeva. Koko 0,46 kertaa keskiarvo."
+ },
+ "B047": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Ylävarjo puuttuu ja runko suuri. Edeltävä liike laskeva, koko riittävä."
+ },
+ "B048": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko noin 9 % vaihteluvälistä. Koko vain 0,40 kertaa keskiarvo."
+ },
+ "B049": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Varjoton laskeva kynttilä, joten tähdenlennon muoto puuttuu. Edeltävä liike laskeva."
+ },
+ "B050": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Ylävarjo kaksinkertainen runkoon, alavarjo puuttuu. Edeltävä lasku selvä, koko riittävä."
+ },
+ "B051": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Alavarjo 2,2 kertaa runko. Liikejakso lähes sivuttainen, vaikka käy alempana. Koko riittävä."
+ },
+ "B052": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Alavarjo ylävarjoa pidempi, runko ei pohjassa. Koko noin puolet keskiarvosta."
+ },
+ "B053": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Alavarjo alle kaksinkertainen runkoon, ylävarjo huomattava. Nousu palautuu lähtötasolle, koko riittävä."
+ },
+ "B054": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Varjot lähes yhtä pitkät, alavarjo vain 1,2 kertaa runko. Edeltävä liike laskeva."
+ },
+ "B055": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton laskeva runko, ei dojia eikä ylävarjoa. Koko vain 0,42 kertaa keskiarvo."
+ },
+ "B056": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Ylävarjo vain 1,20 kertaa runko. Edeltävä liike nouseva, koko riittävä."
+ },
+ "B057": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Nouseva varjoton kynttilä. Vaihteluväli 1,33 kertaa keskiarvo, selvästi suurempi."
+ },
+ "B058": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo vain puolet rungosta. Edeltävä liike selvästi laskeva, koko riittävä."
+ },
+ "B059": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Avaus ja päätös huipussa, pelkkä alavarjo. Koko vain 0,35 kertaa keskiarvo."
+ },
+ "B060": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko yli puolet vaihteluvälistä, joten doji puuttuu. Koko vain 0,41 kertaa keskiarvo."
+ },
+ "B061": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton nouseva runko, ei dojia. Koko vain 0,09 kertaa keskiarvo."
+ },
+ "B062": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Laskeva varjoton kynttilä. Vaihteluväli 1,55 kertaa keskiarvo, selvästi suurempi."
+ },
+ "B063": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Alavarjo puuttuu. Liikejakson nousu vaihtuu laskuksi ja sahaamiseksi. Koko selvästi keskiarvoa suurempi."
+ },
+ "B064": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Runko ylävarjoa pidempi. Edeltävä liike nouseva, vaikka lopussa pieni lasku. Koko riittävä."
+ },
+ "B065": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Nouseva runko peittää edellisen, edeltävä lasku selvä. Koko vain 0,57 kertaa keskiarvo."
+ },
+ "B066": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo 2,67 kertaa runko, ylävarjo puuttuu. Liikejakso kokonaisuutena nouseva, koko riittävä."
+ }
+}
