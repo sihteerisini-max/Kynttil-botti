@@ -78,6 +78,13 @@ vaikutusta kannattavuuteen.
 * **Markkinat (kiinteät):** PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD ja PF_XRPUSD, 1 min
   kynttilät.
 
+> **Poikkeama lukitusta suunnitelmasta 30.9.2026 klo 20.10 (17:10 UTC), Jessen päätös:** seurattavat
+> markkinat vaihdettiin: XBT, ETH, SOL, ZEC, XRP → SUI, ZEC, XRP, DOGE, SOL
+> (`results/MARKKINAVAIHTO_2026-09-30.md`). Säännöt, kulumalli, tilit ja jakson alku ja loppu pysyivät
+> ennallaan. Ennen vaihtoa kauppoja oli 0. Kannattavuus arvioidaan **vaihdon jälkeen avatuista
+> kaupoista** (`evaluate --start "2026-09-30 17:10"`). Tämä osa on uudella markkinajoukolla, joten
+> kohdan 7 voima-arvio (jakson A markkinat) ei päde siihen sellaisenaan.
+
 ## 5. Testijakso
 
 * **Alku:** paperitilien todellinen aloitushetki lämmittelyn jälkeen. Railway-lokissa rivi on
