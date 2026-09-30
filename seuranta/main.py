@@ -201,6 +201,139 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
 _cache: dict = {"t": 0, "data": None}
 _lock = threading.Lock()
 
+# ---------------------------------------------------------------- kynttiläkaaviot
+SYMBOLS = [x.strip() for x in os.environ.get(
+    "SYMBOLS", "PF_XBTUSD,PF_ETHUSD,PF_SOLUSD,PF_ZECUSD,PF_XRPUSD").split(",") if x.strip()]
+CHARTS_URL = "https://futures.kraken.com/api/charts/v1/trade/{sym}/1m?from={frm}&to={to}"
+MAX_H = 24
+_candles: dict[str, dict[int, list]] = {}      # symboli -> {avausaika ms: [t, o, h, l, c]}
+_cstate = {"t": 0.0, "ok_at": 0, "error": None, "loaded": set()}
+_logs = {"t": 0.0, "data": None}
+_clock = threading.Lock()
+
+
+def _fetch_range(sym: str, start_ms: int, end_ms: int) -> None:
+    frm, to = start_ms // 1000, end_ms // 1000
+    store = _candles.setdefault(sym, {})
+    while frm < to:
+        d = json.loads(http_get(CHARTS_URL.format(sym=sym, frm=frm, to=to)))
+        cs = d.get("candles") or []
+        for c in cs:
+            t = int(c["time"])
+            store[t] = [t, float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])]
+        if not cs or not d.get("more_candles"):
+            break
+        nxt = int(cs[-1]["time"]) // 1000 + 60
+        if nxt <= frm:
+            break
+        frm = nxt
+
+
+def refresh_candles() -> None:
+    now = int(time.time() * 1000)
+    if time.time() - _cstate["t"] < 8:
+        return
+    _cstate["t"] = time.time()
+    try:
+        for sym in SYMBOLS:
+            if sym not in _cstate["loaded"]:
+                _fetch_range(sym, now - MAX_H * 3_600_000, now + 60_000)
+                _cstate["loaded"].add(sym)
+            else:
+                _fetch_range(sym, now - 5 * 60_000, now + 60_000)   # viimeiset minuutit + muodostuva
+            store = _candles[sym]
+            for t in [t for t in store if t < now - (MAX_H + 1) * 3_600_000]:
+                del store[t]
+        _cstate["ok_at"], _cstate["error"] = now, None
+    except Exception as e:
+        _cstate["error"] = f"Krakenin kynttilädataa ei saatu: {e}"
+
+
+def bot_logs() -> tuple[dict, list]:
+    """{versio: (kaupat, tapahtumat)} – välimuisti 20 s, koska tiedostot haetaan kokonaan."""
+    if _logs["data"] is None or time.time() - _logs["t"] > 20:
+        out, errs = {}, []
+        for v in VERSIONS:
+            try:
+                out[v] = (fetch_log(f"kaupat_{v}.jsonl"), fetch_log(f"tapahtumat_{v}.jsonl"))
+            except Exception as e:
+                errs.append(f"[{v}] botin lokeja ei saatu: {e}")
+                out[v] = _logs["data"][0].get(v, ([], [])) if _logs["data"] else ([], [])
+        _logs["data"], _logs["t"] = (out, errs), time.time()
+    return _logs["data"]
+
+
+def outcome(reason: str) -> str:
+    if "samassa kynttilässä" in reason:
+        return "epäselvä"
+    if reason.startswith("voittotavoite") or reason.startswith("tavoite"):
+        return "tavoite"
+    if reason.startswith("stop"):
+        return "stop"
+    if reason.startswith("aikaraja"):
+        return "aikaraja"
+    return "muu"
+
+
+def exit_bar(t_exit: int, reason: str) -> int:
+    """Kynttilä, jonka aikana sulku tapahtui. Stop/tavoite todetaan kynttilän sulkeutuessa
+    (kirjattu aika = seuraavan kynttilän avaus); aikaraja ja hintakuilut avauksessa."""
+    if reason.startswith("stop loss") or reason.startswith("voittotavoite"):
+        return t_exit - 60_000
+    return t_exit
+
+
+def build_charts(hours: float) -> dict:
+    now = int(time.time() * 1000)
+    with _clock:
+        refresh_candles()
+        logs, log_errs = bot_logs()
+        w0 = now - int(hours * 3_600_000)
+        candles = {s: [c for t, c in sorted(_candles.get(s, {}).items()) if t >= w0 - 60_000] for s in SYMBOLS}
+    trades, opens, skips, summary = [], [], [], {}
+    for bi, v in enumerate(VERSIONS, start=1):
+        tr, ev = logs.get(v, ([], []))
+        closed = {t["id"]: t for t in tr}
+        summ = {side: {"kauppoja": 0, "tavoite": 0, "stop": 0, "aikaraja": 0, "epäselvä": 0, "muu": 0, "avoinna": 0}
+                for side in ("long", "short")}
+        open_ev = {e["id"]: e for e in ev if e.get("kind") == "open"}
+        for t in closed.values():
+            o = outcome(t["close_reason"])
+            summ[t["side"]]["kauppoja"] += 1
+            summ[t["side"]][o] += 1
+            te = ms(t["exit_time"])
+            oe = open_ev.get(t["id"], {})
+            trades.append({
+                "bot": bi, "version": v, "id": t["id"], "symbol": t["symbol"], "side": t["side"],
+                "signal_time": ms(t["signal_time"]), "entry_time": ms(t["entry_time"]),
+                "entry_price": t["entry_price"], "entry_ref": oe.get("entry_ref"),
+                "stop": t["stop"], "target": t["target"], "qty": t["qty"],
+                "exit_time": te, "exit_bar": exit_bar(te, t["close_reason"]), "exit_price": t["exit_price"],
+                "reason": t["close_reason"], "outcome": o, "open_reason": t["open_reason"],
+                "gross_move": round(float(t["gross_pnl"]) + float(t["spread_slippage_est"]), 2),
+                "fees": t["fees"], "spread_slippage": t["spread_slippage_est"], "funding": t["funding"],
+                "costs": round(float(t["fees"]) + float(t["spread_slippage_est"]) + float(t["funding"]), 2),
+                "net": t["net_pnl"]})
+        for pid, e in open_ev.items():
+            if pid in closed:
+                continue
+            summ[e["side"]]["avoinna"] += 1
+            opens.append({"bot": bi, "version": v, "id": pid, "symbol": e["symbol"], "side": e["side"],
+                          "signal_time": e.get("signal_time"),
+                          "entry_time": ms(e["entry_time"]), "entry_price": e["entry_price"],
+                          "entry_ref": e.get("entry_ref"), "stop": e["stop"], "target": e["target"],
+                          "qty": e["qty"], "open_reason": e.get("reason", "")})
+        for e in ev:
+            if e.get("kind") == "skipped" and e["time"] >= w0 - 60_000:
+                skips.append({"bot": bi, "version": v, "symbol": e["symbol"], "side": e["side"],
+                              "time": e["time"], "why": e["why"], "reason": e.get("reason", "")})
+        summary[v] = summ
+    errors = list(log_errs) + ([_cstate["error"]] if _cstate["error"] else [])
+    last = {s: (candles[s][-1][0] if candles[s] else None) for s in SYMBOLS}
+    return {"generated": now, "hours": hours, "symbols": SYMBOLS, "candles": candles, "last_candle": last,
+            "kraken_ok_at": _cstate["ok_at"], "versions": VERSIONS, "trades": trades, "opens": opens,
+            "skips": skips, "summary": summary, "errors": errors}
+
 
 def build() -> dict:
     now = int(time.time() * 1000)
@@ -256,6 +389,16 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/":
             with open(os.path.join(HERE, "sivu.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if u.path == "/kaaviot.js":
+            with open(os.path.join(HERE, "kaaviot.js"), "rb") as f:
+                return self._send(200, f.read(), "text/javascript; charset=utf-8")
+        if u.path == "/api/kaaviot":
+            try:
+                h = float(parse_qs(u.query).get("tunnit", ["3"])[0])
+                data = build_charts(min(max(h, 0.5), MAX_H))
+            except Exception as e:
+                return self._send(500, json.dumps({"error": str(e)}).encode(), "application/json")
+            return self._send(200, json.dumps(data, ensure_ascii=False).encode(), "application/json; charset=utf-8")
         if u.path == "/api/tila":
             try:
                 data = get_data()

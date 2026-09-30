@@ -78,6 +78,32 @@ tr:last-child td { border-bottom: 0; }
 .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15); display: none; white-space: nowrap; }
 .foot { color: var(--muted); font-size: 12px; margin: 20px 0 8px; }
+.kc-card { margin-top: 16px; }
+.kc-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 10px 0 6px; }
+.kc-win { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.kc-win button { background: var(--surface); color: var(--text); border: 0; border-right: 1px solid var(--line); padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; min-width: 44px; }
+.kc-win button:last-child { border-right: 0; }
+.kc-win button.on { background: var(--text); color: var(--surface); }
+.kc-chk { font-size: 13px; color: var(--text-2); display: inline-flex; gap: 6px; align-items: center; }
+.kc-upd { font-size: 13px; color: var(--text-2); }
+.kc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0 10px; }
+.kc-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.kc-note, .kc-hint { font-size: 12px; color: var(--muted); margin: 6px 0; }
+.kc-chart { border: 1px solid var(--line); border-radius: 10px; margin-top: 12px; overflow: hidden; }
+.kc-head { padding: 8px 10px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; border-bottom: 1px solid var(--grid); }
+.kc-px { color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+.kc-warn { color: var(--bad); font-weight: 600; font-size: 12px; }
+.kc-body { display: flex; }
+.kc-scroll { flex: 1; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.kc-scroll svg { display: block; }
+.kc-axis { flex: none; border-left: 1px solid var(--grid); background: var(--surface); }
+.kc-detail { border-top: 1px solid var(--grid); padding: 10px 12px; font-size: 13px; background: var(--bg); }
+.kc-dh { margin-bottom: 6px; }
+.kc-dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; }
+.kc-dl dt { color: var(--text-2); }
+.kc-dl dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .kc-dl { grid-template-columns: 1fr; } .kc-dl dd { margin-bottom: 4px; } }
+.kc-close { margin-top: 8px; font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; }
 .side-long { color: var(--good); font-weight: 600; } .side-short { color: var(--bad); font-weight: 600; }
 </style>
 </head>
@@ -87,6 +113,11 @@ tr:last-child td { border-bottom: 0; }
   <div class="paper"><b>PAPERIKAUPPAA.</b> Tilit ovat simuloituja (aloituspääoma 10 000 USD kummallakin). Botti ei lähetä oikeita toimeksiantoja eikä käytä oikeaa rahaa. Tämä sivu vain lukee botin lokeja eikä voi muuttaa mitään.</div>
   <div class="meta" id="meta">Ladataan…</div>
   <div id="alerts"></div>
+
+  <div class="card kc-card">
+    <h2>Kynttiläkaaviot ja paperikaupat (1 min)</h2>
+    <div id="kaaviot"></div>
+  </div>
 
   <div class="card chart-card">
     <h2>Toteutunut tilin arvo</h2>
@@ -98,7 +129,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="grid2" id="accts"></div>
 
   <div class="foot">
-    Tilan johtaminen: toteutunut tulos, pudotus ja tappiorajat lasketaan botin kauppalokista samoilla säännöillä kuin moottorissa. Avoimen kaupan tulos on arvio nykyisellä bid/ask-hinnalla, ja siihen sisältyvät arvioitu sulkuliukuma ja palkkio. Fundingia ei ole mukana ennen sulkua. Ajat ovat Suomen aikaa. Sivu päivittyy 30 sekunnin välein.
+    Tilan johtaminen: toteutunut tulos, pudotus ja tappiorajat lasketaan botin kauppalokista samoilla säännöillä kuin moottorissa. Avoimen kaupan tulos on arvio nykyisellä bid/ask-hinnalla, ja siihen sisältyvät arvioitu sulkuliukuma ja palkkio. Fundingia ei ole mukana ennen sulkua. Ajat ovat Suomen aikaa. Tilitiedot päivittyvät 30 sekunnin ja kaaviot 10 sekunnin välein.
   </div>
 </div>
 <script>
@@ -246,6 +277,7 @@ async function load() {
 }
 load();
 setInterval(load, 30000);
+(() => { const sc = document.createElement("script"); sc.src = "/kaaviot.js?token=" + encodeURIComponent(TOKEN); document.body.appendChild(sc); })();
 window.addEventListener("resize", () => DATA && drawChart(DATA));
 </script>
 </body>
