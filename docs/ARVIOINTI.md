@@ -27,3 +27,4 @@ ei arvioida tässä. Kaupankäyntisäännöt ovat ennallaan.
 |---|---|---|---|
 | A | jakso A (22.–29.9.2026), 5 Kraken-perpetualia | 66 | arvioitu 30.9.2026 – tulokset `validointi/ARVIOINTI_A_TULOKSET.md`; johti muutokseen T2 |
 | B | 29.9.2026 18:43 – 30.9.2026 14:23 UTC, samat 5 markkinaa | 66 (33 satunnaista, 24 botin T2-tunnistamaa, 9 T1/T2-erimielisyyttä) | arvioitu 30.9.2026 ChatGPT:llä (tekstimuoto) – tulokset `validointi/ARVIOINTI_B_TULOKSET.md`; arvioitava T2, vertailu T1; muoto, liike ja koko erikseen; vertailujaksot 20 (koko) ja 10 (liike) merkitty; hinnat täydellä tarkkuudella; arviointitapa kirjataan |
+| C | sama jakso kuin B, eri kynttilät (0 päällekkäisyyttä) | 66 (33 satunnaista, 24 botin T2-tunnistamaa, 9 T1/T2-erimielisyyttä) | arvioitu 30.9.2026 ChatGPT:llä (tekstimuoto), **ei täysin riippumaton**: yksi keskustelu kaikille osille, aiempien arviointien yhteenveto välittyi – tulokset `validointi/ARVIOINTI_C_TULOKSET.md`; ei sääntömuutoksia |

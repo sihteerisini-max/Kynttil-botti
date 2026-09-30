@@ -1,0 +1,399 @@
+{
+ "_tapa": "tekoäly (ChatGPT), numeerinen tekstimuotoinen data",
+ "C001": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "epaselva",
+  "perustelu": "Alavarjo runkoa lyhyempi, liike kokonaisuutena nouseva, vaihteluväli noin 77 prosenttia keskiarvosta"
+ },
+ "C002": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko hyvin ohut suhteessa vaihteluväliin, koko ylittää vertailukeskiarvon"
+ },
+ "C003": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Avaus ja päätös huipussa, vaihteluväli noin 70 prosenttia keskiarvosta"
+ },
+ "C004": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Kynttilöiden suunnat väärin päin, edeltävä jakso ei laske"
+ },
+ "C005": {
+  "muoto": "on",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Pitkä alavarjo ja pieni ylärunko, edeltävä jakso kokonaisuutena nousee"
+ },
+ "C006": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Edellinen kynttilä nouseva, edeltävä liike nousee, koko lähellä keskiarvoa"
+ },
+ "C007": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Selvä runko ja huomattava ylävarjo, ei sudenkorento-doji"
+ },
+ "C008": {
+  "muoto": "on",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Ylävarjo viisinkertainen runkoon nähden, edeltävä jakso sivuttainen"
+ },
+ "C009": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo kaksinkertainen runkoon nähden, ei ylävarjoa, edeltävä liike laskee"
+ },
+ "C010": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton nouseva kynttilä, vaihteluväli jää keskiarvon alapuolelle"
+ },
+ "C011": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Pitkä alavarjo, edeltävä jakso kääntyy laskuun, vaihteluväli alle puolet keskiarvosta"
+ },
+ "C012": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Arvioitava kynttilä nouseva, edeltävä liike selvästi nousee, koko riittävä"
+ },
+ "C013": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Täsmällinen sudenkorento-doji, vaihteluväli vain noin viidennes keskiarvosta"
+ },
+ "C014": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Suuri laskeva runko, vaihteluväli noin 77 prosenttia keskiarvosta"
+ },
+ "C015": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Arvioitava kynttilä nouseva, edeltävä jakso laskee, vaihteluväli selvästi pieni"
+ },
+ "C016": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Kynttilä nouseva, vaadittu suunta laskeva, vaihteluväli selvästi keskiarvoa pienempi"
+ },
+ "C017": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Nouseva runko peittää laskevan rungon, edeltävä jakso kokonaisuutena laskee"
+ },
+ "C018": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "ei",
+  "perustelu": "Vasaramuoto täyttyy, alun laskua seuraa nousu ja vetäytyminen, koko selvästi pieni"
+ },
+ "C019": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko hyvin ohut, vaihteluväli vain noin 56 prosenttia keskiarvosta"
+ },
+ "C020": {
+  "muoto": "epaselva",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko noin 15 prosenttia vaihteluvälistä, dojin ohuus tulkinnanvarainen"
+ },
+ "C021": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "epaselva",
+  "perustelu": "Runko peittää edellisen, edeltävä liike laskee, koko noin 77 prosenttia keskiarvosta"
+ },
+ "C022": {
+  "muoto": "on",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Pitkä ylävarjo ja pieni alarunko, edeltävä jakso nousee, koko selvästi pienempi"
+ },
+ "C023": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "ei",
+  "perustelu": "Ylävarjo puuttuu, edeltävä liike sahaava ja lievästi laskeva, koko selvästi pieni"
+ },
+ "C024": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Varjoton laskeva kynttilä, edeltävä jakso ei osoita selvää nousua"
+ },
+ "C025": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Kynttilä nouseva, vaihteluväli vain noin neljännes keskiarvosta"
+ },
+ "C026": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "epaselva",
+  "perustelu": "Vasaramuoto täyttyy, edeltävä jakso sahaava, koko noin 77 prosenttia keskiarvosta"
+ },
+ "C027": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Laskeva runko peittää edellisen, edeltävä nousu selvä, vaihteluväli selvästi pieni"
+ },
+ "C028": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Pieni ylärunko ja pitkä alavarjo, edeltävä jakso kokonaisuutena nousee"
+ },
+ "C029": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "epaselva",
+  "perustelu": "Ylävarjo kaksinkertainen runkoon nähden, edeltävä jakso laskee, koko rajatapaus"
+ },
+ "C030": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Lähes olematon runko, vaihteluväli vain noin 39 prosenttia keskiarvosta"
+ },
+ "C031": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton laskeva kynttilä, vaihteluväli keskiarvoa pienempi"
+ },
+ "C032": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Varjoton laskeva kynttilä, vaihteluväli noin kaksinkertainen keskiarvoon nähden"
+ },
+ "C033": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Alavarjo huomattava suhteessa runkoon, vaihteluväli lähes sama kuin keskiarvo"
+ },
+ "C034": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Nouseva runko peittää edellisen, edeltävä jakso laskee huipusta, koko selvästi pieni"
+ },
+ "C035": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Ylävarjo ei hyvin lyhyt suhteessa runkoon, vaihteluväli ei keskiarvoa suurempi"
+ },
+ "C036": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko liian suuri dojiksi, koko ei selvästi keskiarvoa pienempi"
+ },
+ "C037": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Ylävarjo puuttuu, edeltävä liike laskee, vaihteluväli erittäin suuri"
+ },
+ "C038": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "ei",
+  "perustelu": "Kynttilöiden suunnat väärät, edeltävä nousu kääntyy laskuksi, koko selvästi pieni"
+ },
+ "C039": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Ylävarjo runkoa lyhyempi, edeltävä jakso laskee, vaihteluväli selvästi pieni"
+ },
+ "C040": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Pitkä ylävarjo ja pieni alarunko, edeltävä liike laskee, koko selvästi pieni"
+ },
+ "C041": {
+  "muoto": "epaselva",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Ylävarjo rungon mittainen, muoto rajatapaus, edeltävä liike nousee, koko pieni"
+ },
+ "C042": {
+  "muoto": "ei",
+  "liike": "ei",
+  "koko": "ei",
+  "perustelu": "Arvioitava kynttilä laskeva, edeltävä jakso nousee, vaihteluväli selvästi pieni"
+ },
+ "C043": {
+  "muoto": "on",
+  "liike": "ei",
+  "koko": "on",
+  "perustelu": "Laskeva runko peittää edellisen, edeltävä jakso laskee, koko lähellä keskiarvoa"
+ },
+ "C044": {
+  "muoto": "epaselva",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko noin 15 prosenttia vaihteluvälistä, sudenkorento-dojin ohuus tulkinnanvarainen"
+ },
+ "C045": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Alavarjo huomattava, vaihteluväli vain noin 20 prosenttia keskiarvoa suurempi"
+ },
+ "C046": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Ylävarjo runkoa lyhyempi, edeltävä jakso sahaava ilman selvää nousutrendiä"
+ },
+ "C047": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "epaselva",
+  "perustelu": "Varjoton nouseva kynttilä, vaihteluväli noin 27 prosenttia keskiarvoa suurempi"
+ },
+ "C048": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "on",
+  "perustelu": "Alavarjo kaksinkertainen runkoon nähden, edeltävä jakso nousee ja vetäytyy"
+ },
+ "C049": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Alavarjo runkoa lyhyempi, edeltävä jakso kokonaisuutena laskee, vaihteluväli pieni"
+ },
+ "C050": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Avaus ja päätös huipussa, vaihteluväli vain noin 31 prosenttia keskiarvosta"
+ },
+ "C051": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Alavarjo puuttuu ja ylävarjo pitkä, edeltävä jakso kokonaisuutena nousee"
+ },
+ "C052": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton nouseva kynttilä, vaihteluväli keskiarvoa pienempi"
+ },
+ "C053": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Laskeva runko peittää edellisen, edeltävä liike nousee, koko riittävä"
+ },
+ "C054": {
+  "muoto": "ei",
+  "liike": "epaselva",
+  "koko": "epaselva",
+  "perustelu": "Alavarjo puuttuu, edeltävä liike sahaava, vaihteluväli noin 73 prosenttia keskiarvosta"
+ },
+ "C055": {
+  "muoto": "on",
+  "liike": "on",
+  "koko": "on",
+  "perustelu": "Pitkä ylävarjo, pieni alarunko, edeltävä liike nousee, vaihteluväli selvästi suuri"
+ },
+ "C056": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko lähes olematon, vaihteluväli selvästi keskiarvoa suurempi"
+ },
+ "C057": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Täsmällinen hautakivi-doji, vaihteluväli alle puolet keskiarvosta"
+ },
+ "C058": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Arvioitava kynttilä laskeva, vaihteluväli selvästi keskiarvoa suurempi"
+ },
+ "C059": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Hyvin ohut runko pohjassa, pitkä ylävarjo, koko lähellä keskiarvoa"
+ },
+ "C060": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Runko täyttää lähes koko vaihteluvälin, ei doji"
+ },
+ "C061": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Runko selvä ja kynttilän huipussa, vaihteluväli selvästi pieni"
+ },
+ "C062": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Täsmällinen hautakivi-doji, vaihteluväli vain noin kymmenesosa keskiarvosta"
+ },
+ "C063": {
+  "muoto": "on",
+  "liike": "epaselva",
+  "koko": "ei",
+  "perustelu": "Ylävarjo nelinkertainen runkoon nähden, edeltävä lasku kääntyy nousuksi, koko pieni"
+ },
+ "C064": {
+  "muoto": "ei",
+  "liike": "on",
+  "koko": "ei",
+  "perustelu": "Ylävarjo puuttuu, edeltävä liike selvästi laskee, vaihteluväli selvästi pienempi"
+ },
+ "C065": {
+  "muoto": "on",
+  "liike": null,
+  "koko": "on",
+  "perustelu": "Varjoton laskeva kynttilä, vaihteluväli noin 67 prosenttia keskiarvoa suurempi"
+ },
+ "C066": {
+  "muoto": "ei",
+  "liike": null,
+  "koko": "ei",
+  "perustelu": "Varjoton nouseva runko, ei doji, vaihteluväli selvästi keskiarvoa pienempi"
+ }
+}
