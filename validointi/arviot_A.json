@@ -1,0 +1,266 @@
+{
+ "A001": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A002": {
+  "muoto": "on",
+  "tausta": "epaselva"
+ },
+ "A003": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A004": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A005": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A006": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A007": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A008": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A009": {
+  "muoto": "on",
+  "tausta": "epaselva"
+ },
+ "A010": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A011": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A012": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A013": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A014": {
+  "muoto": "on",
+  "tausta": "epaselva"
+ },
+ "A015": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A016": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A017": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A018": {
+  "muoto": "epaselva",
+  "tausta": "on"
+ },
+ "A019": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A020": {
+  "muoto": "on",
+  "tausta": "epaselva"
+ },
+ "A021": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A022": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A023": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A024": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A025": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A026": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A027": {
+  "muoto": "epaselva",
+  "tausta": "on"
+ },
+ "A028": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A029": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A030": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A031": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A032": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A033": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A034": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A035": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A036": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A037": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A038": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A039": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A040": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A041": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A042": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A043": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A044": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A045": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A046": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A047": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A048": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A049": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A050": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A051": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A052": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A053": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A054": {
+  "muoto": "on",
+  "tausta": "epaselva"
+ },
+ "A055": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A056": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A057": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A058": {
+  "muoto": "epaselva",
+  "tausta": "on"
+ },
+ "A059": {
+  "muoto": "ei",
+  "tausta": "epaselva"
+ },
+ "A060": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A061": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A062": {
+  "muoto": "ei",
+  "tausta": "on"
+ },
+ "A063": {
+  "muoto": "ei",
+  "tausta": "ei"
+ },
+ "A064": {
+  "muoto": "on",
+  "tausta": "on"
+ },
+ "A065": {
+  "muoto": "on",
+  "tausta": "ei"
+ },
+ "A066": {
+  "muoto": "on",
+  "tausta": "ei"
+ }
+}

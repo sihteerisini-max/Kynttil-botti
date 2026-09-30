@@ -19,7 +19,9 @@ PATTERNS = ["doji", "dragonfly_doji", "gravestone_doji", "hammer", "hanging_man"
 
 
 def _c(text, value, limit, ok):
-    return {"ehto": text, "arvo": round(value, 4) if isinstance(value, float) else value, "raja": limit, "ok": bool(ok)}
+    if isinstance(value, float):
+        value = round(value, 4) if value == value and abs(value) != float("inf") else "∞"
+    return {"ehto": text, "arvo": value, "raja": limit, "ok": bool(ok)}
 
 
 def components(prev: Sequence[Candle], cur: Candle, p: Params = DEFAULT) -> dict | None:

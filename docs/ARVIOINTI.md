@@ -25,4 +25,5 @@ ei arvioida tässä. Kaupankäyntisäännöt ovat ennallaan.
 
 | Sarja | Data | Tapauksia | Tila |
 |---|---|---|---|
-| A | jakso A (22.–29.9.2026), 5 Kraken-perpetualia | 66 | odottaa arviointia |
+| A | jakso A (22.–29.9.2026), 5 Kraken-perpetualia | 66 | arvioitu 30.9.2026 – tulokset `validointi/ARVIOINTI_A_TULOKSET.md`; johti muutokseen T2 |
+| B | 29.9.2026 18:43 UTC jälkeen, samat 5 markkinaa | 66 | odottaa dataa; arvioitava T2, vertailu T1; liike ja koko erikseen |

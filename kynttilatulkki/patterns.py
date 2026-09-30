@@ -29,7 +29,7 @@ tulkittavaksi) tai jos historiaa on alle MIN_HISTORY kynttilää.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Sequence
 
 from .models import Candle, Context, Observation
@@ -54,6 +54,11 @@ class Params:
 
 
 DEFAULT = Params()
+
+# Tunnistusmääritelmän versiot. T1 = käytössä kaupankäyntiversioissa v1, v1.1 ja v2 (lukittu).
+# T2 = sokkoarvioinnin (sarja A) perusteella ehdotettu: suhteellisen koon alaraja 0,3 -> 0,6.
+# T2:ta käytetään vain tunnistuksen arviointiin; kaupankäyntisäännöt käyttävät T1:tä.
+TUNNISTUS = {"T1": DEFAULT, "T2": replace(DEFAULT, min_range_rel=0.60)}
 
 
 # ---------------------------------------------------------------------------
