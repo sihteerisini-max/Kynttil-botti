@@ -1,8 +1,8 @@
 # T2-signaalien kaupankäyntitesti: ennakkoon lukittu suunnitelma
 
 > **ARKISTOITU 30.9.2026 klo 20.39 (17:39 UTC):** testi lopetettiin Jessen päätöksellä, ja tilalle
-> tuli ajoitustesti 1 (`docs/AJOITUSTESTI_1.md`). Kauppoja ei ehtinyt syntyä yhtään, joten tuloksia
-> ei ole. Tiedostot säilyvät, eikä tuloksia yhdistetä uuteen vaiheeseen.
+> tuli ajoitustesti 1 (`docs/AJOITUSTESTI_1.md`). `v1.1-T2` teki 1 kaupan (suljettu 17:38 UTC, netto
+> −50,85 USD) ja `v2-T2` ei yhtään. Aineisto ei riitä mihinkään johtopäätökseen. Tiedostot säilyvät, eikä tuloksia yhdistetä uuteen vaiheeseen.
 
 Lukittu 30.9.2026, ennen kuin testijakson dataa on olemassa. Tätä asiakirjaa, sääntöjä,
 kulumallia, markkinoita, jaksoa ja mittareita **ei muuteta testin aikana eikä tulosten perusteella**.

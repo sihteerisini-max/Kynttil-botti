@@ -31,7 +31,9 @@ Tiedostot: `v1_2026-09-22T1843_2026-09-29T1843/`
 ## T2-testin arkistointi 30.9.2026 17:39 UTC
 
 T2-kannattavuustesti (`v1.1-T2`, `v2-T2`) lopetettiin Jessen päätöksellä, kun ajoitustesti 1
-käynnistyi. Jakso kesti 15:21–17:39 UTC, ja markkinavaihto oli 17:10. Kumpikaan tili ei avannut
-yhtään kauppaa: kaikki signaalit jäivät kulusuodattimeen. Tulos ei ole tulkittavissa. Tila- ja
+käynnistyi. Jakso kesti 15:21–17:39 UTC, ja markkinavaihto oli 17:10.
+* `v1.1-T2` teki 1 kaupan vaihdon jälkeen. Se suljettiin 17:38 UTC, nettotulos −50,85 USD.
+* `v2-T2` ei tehnyt kauppoja.
+* Avoimia positioita ei jäänyt. Aineisto on liian pieni tulkittavaksi. Tila- ja
 lokitiedostot säilyvät Volumessa, eikä niitä yhdistetä ajoitustestiin.
 
