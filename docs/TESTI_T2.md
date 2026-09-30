@@ -1,5 +1,9 @@
 # T2-signaalien kaupankäyntitesti: ennakkoon lukittu suunnitelma
 
+> **ARKISTOITU 30.9.2026 klo 20.39 (17:39 UTC):** testi lopetettiin Jessen päätöksellä, ja tilalle
+> tuli ajoitustesti 1 (`docs/AJOITUSTESTI_1.md`). Kauppoja ei ehtinyt syntyä yhtään, joten tuloksia
+> ei ole. Tiedostot säilyvät, eikä tuloksia yhdistetä uuteen vaiheeseen.
+
 Lukittu 30.9.2026, ennen kuin testijakson dataa on olemassa. Tätä asiakirjaa, sääntöjä,
 kulumallia, markkinoita, jaksoa ja mittareita **ei muuteta testin aikana eikä tulosten perusteella**.
 Lukituksen tunniste on tämän tiedoston sisältävä git-commit. Railway tulostaa käynnistyksessä

@@ -7,8 +7,9 @@ käytetä myöhempien versioiden hyvyyden todisteena.
 |---|---|---|---|
 | **A** | 2026-09-22 18:43 – 2026-09-29 18:43 | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | v1:n ensimmäinen historiatesti. **Katsottu** – ei enää puolueeton millekään versiolle. |
 | **B** | ei käynnistetty (Jessen päätös 30.9.2026) | – | Suunniteltu v1.1 vs v2 live-paperivertailu. Versiot pysyvät lukittuina. |
+| **AJOITUSTESTI 1** | **2026-09-30 17:39 UTC – 2026-10-28 17:39 UTC** (28 vrk; Railway-loki `TESTIJAKSO [aj1-kaanto]`, commit b4a92ff) | PF_SUIUSD, PF_ZECUSD, PF_XRPUSD, PF_DOGEUSD, PF_SOLUSD | Ajoituksen paperitesti: `aj1-kaanto` (T2-kääntymissignaalit) ja `aj1-jatko` (jatkumissignaali) erillisillä tileillä, ei kulusuodatinta, 1 R / 1 R / 15 min (`docs/AJOITUSTESTI_1.md`). Uudet tilit alusta (10 000 USD kumpikin). |
 | arviointidata | 2026-09-29 18:43 – 2026-09-30 14:23 | samat 5 | Tunnistuksen sokkoarvioinnit, sarjat B ja C. **Katsottu** – ei kannattavuustestiin. |
-| **T2-testi** | **2026-09-30 15:21 UTC – 2026-10-28 15:21 UTC** (kiinteä 28 vrk; molemmat tilit samasta hetkestä, Railway-loki `TESTIJAKSO [...]`, commit 768194a) | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | Eteenpäin kerättävä paperitesti, lukittu 30.9.2026 (`docs/TESTI_T2.md`). Käynnistetty 30.9.2026 puhtaalta tilalta (Volume `/data`). Katkokset: 30.9. 15:26:57–15:27:00 UTC uudelleenkäynnistys, jonka aiheutti dokumenttimuutoksen push (commit de7cfdf, kaupankäyntikoodi identtinen); tila jatkui tallennuksesta. **Markkinavaihto 30.9. 17:10 UTC** (Jessen pyyntö): XBT, ETH, SOL, ZEC, XRP → SUI, ZEC, XRP, DOGE, SOL (`results/MARKKINAVAIHTO_2026-09-30.md`). Ennen vaihtoa 0 kauppaa. Tulokset raportoidaan erikseen ennen vaihtoa ja sen jälkeen, eikä niitä yhdistetä. Tämän jälkeen botti deployataan vain `kynttilatulkki/**`-, `railway.json`- tai `requirements.txt`-muutoksista (Railway watch paths). |
+| **T2-testi** (ARKISTOITU 30.9. 17:39 UTC) | **2026-09-30 15:21 UTC – 2026-10-28 15:21 UTC** (kiinteä 28 vrk; molemmat tilit samasta hetkestä, Railway-loki `TESTIJAKSO [...]`, commit 768194a) | PF_XBTUSD, PF_ETHUSD, PF_SOLUSD, PF_ZECUSD, PF_XRPUSD | Eteenpäin kerättävä paperitesti, lukittu 30.9.2026 (`docs/TESTI_T2.md`). Käynnistetty 30.9.2026 puhtaalta tilalta (Volume `/data`). Katkokset: 30.9. 15:26:57–15:27:00 UTC uudelleenkäynnistys, jonka aiheutti dokumenttimuutoksen push (commit de7cfdf, kaupankäyntikoodi identtinen); tila jatkui tallennuksesta. **Markkinavaihto 30.9. 17:10 UTC** (Jessen pyyntö): XBT, ETH, SOL, ZEC, XRP → SUI, ZEC, XRP, DOGE, SOL (`results/MARKKINAVAIHTO_2026-09-30.md`). Ennen vaihtoa 0 kauppaa. Tulokset raportoidaan erikseen ennen vaihtoa ja sen jälkeen, eikä niitä yhdistetä. Tämän jälkeen botti deployataan vain `kynttilatulkki/**`-, `railway.json`- tai `requirements.txt`-muutoksista (Railway watch paths). |
 
 ## Jakso A – v1 (ajettu 29.9.2026, Jessen koneella)
 
@@ -26,3 +27,11 @@ käytetä myöhempien versioiden hyvyyden todisteena.
   0,6–3 % markkinasta riippuen.
 
 Tiedostot: `v1_2026-09-22T1843_2026-09-29T1843/`
+
+## T2-testin arkistointi 30.9.2026 17:39 UTC
+
+T2-kannattavuustesti (`v1.1-T2`, `v2-T2`) lopetettiin Jessen päätöksellä, kun ajoitustesti 1
+käynnistyi. Jakso kesti 15:21–17:39 UTC, ja markkinavaihto oli 17:10. Kumpikaan tili ei avannut
+yhtään kauppaa: kaikki signaalit jäivät kulusuodattimeen. Tulos ei ole tulkittavissa. Tila- ja
+lokitiedostot säilyvät Volumessa, eikä niitä yhdistetä ajoitustestiin.
+

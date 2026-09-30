@@ -8,7 +8,7 @@ mutta ne eivät estä avauksia.
 **Alkuhetki:** paperitilien todellinen aloitushetki. Railway-loki `TESTIJAKSO [aj1-kaanto]`, ja
 tapahtuma `testi_alkoi` tallentuu tiedostoon `tapahtumat_<versio>.jsonl`. Hetki kirjataan tiedostoon
 `results/TESTIJAKSOT.md`.
-**Pituus:** 28 vuorokautta.
+**Käynnistyi 30.9.2026 klo 20.39 Suomen aikaa (17:39 UTC)** koodilla b4a92ff. Päättyy 28.10.2026 17:39 UTC, joten pituus on 28 vuorokautta.
 
 ## Tilit (erilliset paperitilit, kumpikin 10 000 USD)
 
