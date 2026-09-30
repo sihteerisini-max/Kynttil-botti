@@ -34,7 +34,7 @@ DAY = 86_400_000
 RULES = {
     "_": dict(start_equity=10_000.0, taker_fee=0.0005, slippage=0.0002, daily_loss_limit=0.02,
               max_consecutive_losses=4, loss_streak_pause_min=60, max_drawdown=0.10,
-              max_positions=3, min_volume_ratio=1.2),
+              max_positions=3, min_volume_ratio=1.2, max_hold_min=15),
     "v1.1-T2": dict(min_r_to_cost=2.0),
     "v2-T2": dict(min_r_to_cost=4.0),
 }
@@ -82,6 +82,8 @@ def fetch_tickers() -> dict:
             out[r["symbol"]] = {
                 "bid": float(r.get("bid") or 0), "ask": float(r.get("ask") or 0),
                 "mark": float(r.get("markPrice") or r.get("last") or 0),
+                "funding_rel": (float(r.get("fundingRate") or 0) / float(r.get("markPrice") or 1)
+                                if r.get("markPrice") else None),
                 "last_time": (int(datetime.fromisoformat(lt.replace("Z", "+00:00")).timestamp() * 1000)
                               if lt else None)}
     return out
@@ -209,6 +211,43 @@ MAX_H = 24
 _candles: dict[str, dict[int, list]] = {}      # symboli -> {avausaika ms: [t, o, h, l, c]}
 _cstate = {"t": 0.0, "ok_at": 0, "error": None, "loaded": set()}
 _logs = {"t": 0.0, "data": None}
+_tick = {"t": 0.0, "data": {}, "at": 0}
+
+
+def tickers_cached() -> dict:
+    if time.time() - _tick["t"] > 8:
+        _tick["t"] = time.time()
+        try:
+            _tick["data"], _tick["at"] = fetch_tickers(), int(time.time() * 1000)
+        except Exception:
+            pass
+    return _tick["data"]
+
+
+def open_estimate(e: dict, v: str, tk: dict, now: int) -> dict:
+    """Avoimen paperiposition arvio nykyhinnalla samoilla kulusäännöillä kuin moottorin sulussa:
+    ennen kuluja = qty × (keskihinta − avauskynttilän avaus); kulujen jälkeen = sulku bid/ask-hintaan
+    + liukuma, molemmat palkkiot ja funding tähän asti. Ei vaikuta botin kauppoihin."""
+    r = rules(v)
+    long = e["side"] == "long"
+    sg = 1 if long else -1
+    out = {"time_limit": ms(e["entry_time"]) + r.get("max_hold_min", 15) * 60_000}
+    if not (tk and tk.get("bid") and tk.get("ask")):
+        return out
+    mid = (tk["bid"] + tk["ask"]) / 2
+    ref = e.get("entry_ref") or e["entry_price"]
+    exit_fill = tk["bid"] * (1 - r["slippage"]) if long else tk["ask"] * (1 + r["slippage"])
+    notional = e["qty"] * e["entry_price"]
+    hours = max(0.0, (now - ms(e["entry_time"])) / 3_600_000)
+    rate = tk.get("funding_rel")
+    funding = notional * (rate * sg if rate is not None else 0.0000125) * hours
+    entry_fee = e.get("entry_fee", r["taker_fee"] * notional)
+    exit_fee = r["taker_fee"] * exit_fill * e["qty"]
+    gross = e["qty"] * (mid - ref) * sg
+    net = e["qty"] * (exit_fill - e["entry_price"]) * sg - entry_fee - exit_fee - funding
+    out.update(price=mid, gross_now=round(gross, 2), net_now=round(net, 2), costs_now=round(gross - net, 2),
+               price_time=tk.get("last_time"))
+    return out
 _clock = threading.Lock()
 
 
@@ -290,6 +329,7 @@ def build_charts(hours: float) -> dict:
         logs, log_errs = bot_logs()
         w0 = now - int(hours * 3_600_000)
         candles = {s: [c for t, c in sorted(_candles.get(s, {}).items()) if t >= w0 - 60_000] for s in SYMBOLS}
+        ticks = tickers_cached()
     trades, opens, skips, summary = [], [], [], {}
     for bi, v in enumerate(VERSIONS, start=1):
         tr, ev = logs.get(v, ([], []))
@@ -322,7 +362,8 @@ def build_charts(hours: float) -> dict:
                           "signal_time": e.get("signal_time"),
                           "entry_time": ms(e["entry_time"]), "entry_price": e["entry_price"],
                           "entry_ref": e.get("entry_ref"), "stop": e["stop"], "target": e["target"],
-                          "qty": e["qty"], "open_reason": e.get("reason", "")})
+                          "qty": e["qty"], "open_reason": e.get("reason", ""),
+                          **open_estimate(e, v, ticks.get(e["symbol"], {}), now)})
         for e in ev:
             if e.get("kind") == "skipped" and e["time"] >= w0 - 60_000:
                 skips.append({"bot": bi, "version": v, "symbol": e["symbol"], "side": e["side"],

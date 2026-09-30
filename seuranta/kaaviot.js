@@ -17,8 +17,12 @@
     muu: {txt: "Muu", ch: "M", col: "--muted"}};
   const BOTCOL = ["--s1", "--s2"];
 
-  let hours = window.matchMedia("(max-width: 600px)").matches ? 1 : 3;
-  let showSkips = true, DATA = null, lastOk = 0, selected = {};
+  const store = {get(k, d) { try { const v = localStorage.getItem("kc_" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem("kc_" + k, JSON.stringify(v)); } catch (e) {} }};
+  let hours = store.get("hours", window.matchMedia("(max-width: 600px)").matches ? 1 : 3);
+  let showSkips = store.get("skips", true), DATA = null, lastOk = 0, selected = store.get("selected", {});
+  const saveSel = () => store.set("selected", selected);
+  const dur = ms_ => { const s = Math.max(0, Math.round(ms_ / 1000)); return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`; };
   const root = document.getElementById("kaaviot");
 
   root.innerHTML = `
@@ -33,16 +37,18 @@
       <span><svg width="14" height="12"><path d="M1 1 L13 1 L7 11 Z" fill="${cssv("--bad")}"/></svg> short avattu</span>
       <span><svg width="14" height="12"><path d="M7 1 L13 11 L1 11 Z" fill="none" stroke="${cssv("--good")}" stroke-width="1.5"/></svg><svg width="14" height="12"><path d="M1 1 L13 1 L7 11 Z" fill="none" stroke="${cssv("--bad")}" stroke-width="1.5"/></svg> tunnistettu, ei avattu</span>
       <span>merkin numero: <b>1</b> = v1.1-T2, <b>2</b> = v2-T2</span>
-      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--s1")}" stroke-width="2"/></svg> avaushinta (botin värillä)</span>
-      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--good")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> tavoite</span>
-      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--bad")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> stop</span>
-      <span>sulku: <b style="color:${cssv("--good")}">T</b> tavoite · <b style="color:${cssv("--bad")}">S</b> stop · <b>A</b> aikaraja · <b style="color:${cssv("--warn-line")}">?</b> epäselvä</span>
+      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--good")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> suunniteltu tavoite</span>
+      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--bad")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> suunniteltu stop</span>
+      <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--s1")}" stroke-width="2"/></svg> avoimen position avaushinta</span>
+      <span><svg width="30" height="12"><circle cx="4" cy="6" r="3" fill="${cssv("--s1")}"/><line x1="4" y1="6" x2="24" y2="6" stroke="${cssv("--s1")}" stroke-width="1.5"/><circle cx="24" cy="6" r="5" fill="${cssv("--good")}"/></svg> avaus → toteutunut sulku (aika ja hinta)</span>
+      <span>sulun syy: <b style="color:${cssv("--good")}">T</b> tavoite · <b style="color:${cssv("--bad")}">S</b> stop · <b>A</b> 15 min aikaraja · <b style="color:${cssv("--warn-line")}">?</b> epäselvä</span>
     </div>
     <div id="kc-summary"></div>
     <div class="kc-hint">Napauta merkkiä nähdäksesi avausperusteen, kellonajat ja tuloksen. Vieritä kaaviota sivusuunnassa nähdäksesi aiemmat minuutit.</div>
     <div id="kc-charts"></div>`;
-  root.querySelectorAll(".kc-win button").forEach(b => b.addEventListener("click", () => { hours = +b.dataset.h; markWin(); load(true); }));
-  root.querySelector("#kc-skips").addEventListener("change", e => { showSkips = e.target.checked; DATA && renderAll(false); });
+  root.querySelectorAll(".kc-win button").forEach(b => b.addEventListener("click", () => { hours = +b.dataset.h; store.set("hours", hours); markWin(); load(true); }));
+  root.querySelector("#kc-skips").checked = showSkips;
+  root.querySelector("#kc-skips").addEventListener("change", e => { showSkips = e.target.checked; store.set("skips", showSkips); DATA && renderAll(false); });
   function markWin() { root.querySelectorAll(".kc-win button").forEach(b => b.classList.toggle("on", +b.dataset.h === hours)); }
   markWin();
 
@@ -74,6 +80,7 @@
     b.className = "kc-chart";
     b.id = "kc-" + sym;
     b.innerHTML = `<div class="kc-head"><b>${esc(sym.replace("PF_", "").replace("USD", "/USD"))}</b> <span class="kc-px"></span> <span class="kc-stale"></span></div>
+      <div class="kc-open"></div>
       <div class="kc-body"><div class="kc-scroll"></div><svg class="kc-axis" width="${AXW}" height="${H}"></svg></div>
       <div class="kc-detail" hidden></div>`;
     document.getElementById("kc-charts").appendChild(b);
@@ -90,15 +97,16 @@
     const tEnd = Math.floor(d.generated / 60000) * 60000;
     const n = Math.round((tEnd - t0) / 60000) + 1;
     const W = n * SLOT + 24;
-    const X = t => (t - t0) / 60000 * SLOT + SLOT / 2;
+    const X = t => (t - t0) / 60000 * SLOT + SLOT / 2;       // kynttilän keskikohta
+    const XT = t => (t - t0) / 60000 * SLOT;                  // todellinen ajanhetki (kynttilöiden rajat = minuutin vaihde)
     const inWin = t => t >= t0 && t <= tEnd;
-    const trades = d.trades.filter(t => t.symbol === sym && t.exit_bar >= t0 && t.entry_time <= tEnd);
+    const trades = d.trades.filter(t => t.symbol === sym && t.exit_time >= t0 && t.entry_time <= tEnd);
     const opens = d.opens.filter(t => t.symbol === sym);
     const skips = showSkips ? d.skips.filter(s => s.symbol === sym && inWin(s.time)) : [];
     // hinta-alue: kynttilät + näkyvien kauppojen tasot
     let lo = Infinity, hi = -Infinity;
     cs.forEach(c => { if (c[0] >= t0) { lo = Math.min(lo, c[3]); hi = Math.max(hi, c[2]); } });
-    [...trades, ...opens].forEach(t => [t.stop, t.target, t.entry_price].forEach(p => { lo = Math.min(lo, p); hi = Math.max(hi, p); }));
+    [...trades, ...opens].forEach(t => [t.stop, t.target, t.entry_price, t.exit_price].forEach(p => { if (p != null) { lo = Math.min(lo, p); hi = Math.max(hi, p); } }));
     if (!isFinite(lo)) { lo = 0; hi = 1; }
     const pad = (hi - lo) * 0.08 || hi * 0.001;
     lo -= pad; hi += pad;
@@ -139,15 +147,38 @@
     const slotK = (t, side) => { const k = `${t}|${side}`; const v = stack.get(k) || 0; stack.set(k, v + 1); return v; };
     const label = (x, y, txt, col) => { const e = el("text", {x, y: y + 4, "font-size": 10, "font-weight": 700, fill: col}, svg); e.textContent = txt; };
 
-    // kauppojen tasot
-    const drawLevels = (t, xEndT, i) => {
-      const xa = X(t.entry_time) - SLOT / 2, xb = X(xEndT) + SLOT / 2;
-      el("line", {x1: xa, x2: xb, y1: Y(t.target), y2: Y(t.target), stroke: cssv("--good"), "stroke-width": 1.5, "stroke-dasharray": "4 3"}, svg);
-      el("line", {x1: xa, x2: xb, y1: Y(t.stop), y2: Y(t.stop), stroke: cssv("--bad"), "stroke-width": 1.5, "stroke-dasharray": "4 3"}, svg);
-      el("line", {x1: xa, x2: xb, y1: Y(t.entry_price), y2: Y(t.entry_price), stroke: cssv(BOTCOL[i]), "stroke-width": 2}, svg);
-    };
-    trades.forEach(t => drawLevels(t, t.exit_bar, t.bot - 1));
-    opens.forEach(t => drawLevels(t, tEnd, t.bot - 1));
+    // suunnitellut sulkurajat (katkoviiva) – suljetuilla avauksesta toteutuneeseen sulkuun
+    const lvl = (xa, xb, p, col, op) => el("line", {x1: xa, x2: xb, y1: Y(p), y2: Y(p), stroke: cssv(col), "stroke-width": 1.5, "stroke-dasharray": "4 3", opacity: op}, svg);
+    trades.forEach(t => {
+      const xa = XT(t.entry_time), xb = XT(t.exit_time);
+      lvl(xa, xb, t.target, "--good", 0.7);
+      lvl(xa, xb, t.stop, "--bad", 0.7);
+    });
+    const xNow = XT(d.generated);
+    opens.forEach(t => {
+      const xa = XT(t.entry_time), col = cssv(BOTCOL[t.bot - 1]);
+      lvl(xa, W, t.target, "--good", 1);
+      lvl(xa, W, t.stop, "--bad", 1);
+      el("line", {x1: xa, x2: W, y1: Y(t.entry_price), y2: Y(t.entry_price), stroke: col, "stroke-width": 2}, svg);
+      const lab = (p, txt, c) => {
+        const tx = el("text", {x: Math.min(xNow + 6, W - 4), y: Y(p) - 4, "font-size": 10, "font-weight": 700, fill: cssv(c), "text-anchor": xNow + 150 > W ? "end" : "start"}, svg);
+        tx.textContent = txt;
+      };
+      lab(t.target, `Tavoite ${num(t.target)} (${t.bot})`, "--good");
+      lab(t.stop, `Stop ${num(t.stop)} (${t.bot})`, "--bad");
+      // aikarajan hetki pystyviivana
+      if (t.time_limit) {
+        const xl = XT(t.time_limit);
+        if (xl <= W) el("line", {x1: xl, x2: xl, y1: PADT, y2: H - PADB, stroke: cssv("--muted"), "stroke-dasharray": "2 3"}, svg);
+      }
+    });
+    // toteutunut kulku: avauspiste -> sulkupiste
+    trades.forEach(t => {
+      const col = cssv(BOTCOL[t.bot - 1]);
+      el("line", {x1: XT(t.entry_time), y1: Y(t.entry_price), x2: XT(t.exit_time), y2: Y(t.exit_price), stroke: col, "stroke-width": 1.5}, svg);
+      el("circle", {cx: XT(t.entry_time), cy: Y(t.entry_price), r: 3, fill: col}, svg);
+    });
+    opens.forEach(t => el("circle", {cx: XT(t.entry_time), cy: Y(t.entry_price), r: 3, fill: cssv(BOTCOL[t.bot - 1])}, svg));
 
     // ohitetut signaalit (yhdistetään botit samaan merkkiin)
     const sk = new Map();
@@ -172,23 +203,19 @@
       label(x + 8, y, arr.map(a => a.bot).join(","), cssv("--muted"));
       hits.push({x, y, kind: "skip", item: arr});
     });
-    // sulut
+    // toteutuneet sulut: todellinen sulkuhetki ja toteutunut sulkuhinta
     trades.forEach(t => {
-      if (!inWin(t.exit_bar)) return;
+      if (t.exit_time < t0 || t.exit_time > d.generated + 60000) return;
       const o = OUT[t.outcome] || OUT.muu;
-      const c = byT.get(t.exit_bar);
-      const p = t.outcome === "tavoite" && !t.reason.includes("hintakuilu") ? t.target
-        : (t.outcome === "stop" || t.outcome === "epäselvä") && !t.reason.includes("hintakuilu") ? t.stop
-        : (c ? c[1] : t.exit_price);
-      const x = X(t.exit_bar), y = Y(p);
+      const x = XT(t.exit_time), y = Y(t.exit_price);
       el("circle", {cx: x, cy: y, r: 6, fill: cssv(o.col), stroke: cssv("--surface"), "stroke-width": 2}, svg);
-      label(x + 8, y - (t.side === "long" ? 0 : 0), o.ch + t.bot, cssv(o.col));
+      label(x + 8, y, o.ch + t.bot, cssv(o.col));
       hits.push({x, y, kind: "trade", item: t});
     });
     // napautusalueet
     hits.forEach((h, i) => {
       const r = el("circle", {cx: h.x, cy: h.y, r: 14, fill: "transparent", style: "cursor:pointer", "data-i": i}, svg);
-      r.addEventListener("click", () => { selected[sym] = keyOf(h); showDetail(sym, h); });
+      r.addEventListener("click", () => { selected[sym] = keyOf(h); saveSel(); showDetail(sym, h); });
     });
 
     sc.innerHTML = "";
@@ -207,7 +234,22 @@
       const tx = el("text", {x: 4, y: y + 4, "font-size": 10, "font-weight": 700, fill: cssv("--surface")}, ax);
       tx.textContent = num(Number(lastC[4].toPrecision(6)));
     }
+    opens.forEach(t => [[t.target, "--good"], [t.stop, "--bad"]].forEach(([p, c]) => {
+      const y = Y(p);
+      el("rect", {x: 0, y: y - 8, width: AXW, height: 16, rx: 3, fill: cssv(c)}, ax);
+      const tx = el("text", {x: 4, y: y + 4, "font-size": 10, "font-weight": 700, fill: "#fff"}, ax);
+      tx.textContent = num(Number(p.toPrecision(6)));
+    }));
     sc.scrollLeft = atEnd ? sc.scrollWidth : prevLeft;
+    b.querySelector(".kc-open").innerHTML = opens.map(t => `<div class="kc-orow">
+      <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"} ${t.bot}</b>
+      avattu ${hm(t.entry_time)} @ ${num(t.entry_price)} ·
+      <span style="color:${cssv("--good")}">tavoite ${num(t.target)}</span> ·
+      <span style="color:${cssv("--bad")}">stop ${num(t.stop)}</span> ·
+      aikaraja ${t.time_limit ? hm(t.time_limit) : "–"} (<span class="kc-cd" data-tl="${t.time_limit || ""}"></span>) ·
+      ennen kuluja <b class="${t.gross_now > 0 ? "pos" : t.gross_now < 0 ? "neg" : ""}">${usd(t.gross_now, true)}</b> ·
+      kulujen jälkeen <b class="${t.net_now > 0 ? "pos" : t.net_now < 0 ? "neg" : ""}">${usd(t.net_now, true)}</b> <span class="kc-muted">(arvio nykyhinnalla)</span></div>`).join("");
+    tickCountdowns();
     // otsikko ja tuoreus
     const lc = d.last_candle[sym];
     b.querySelector(".kc-px").textContent = lastC ? `${num(lastC[4])} · viimeisin kynttilä ${hm(lc)}` : "ei dataa";
@@ -234,13 +276,19 @@
         <dl class="kc-dl">
           <dt>Avausperuste</dt><dd>${esc(t.open_reason)}</dd>
           <dt>Signaalikynttilä</dt><dd>${dhm(t.signal_time)} (vahvistui ${t.signal_time ? hm(t.signal_time + 60000) : "–"})</dd>
-          <dt>Avattu</dt><dd>${dhm(t.entry_time)}, toteutunut avaushinta ${num(t.entry_price)}${t.entry_ref ? ` (kynttilän avaus ${num(t.entry_ref)})` : ""}</dd>
-          <dt>Tavoite / stop</dt><dd>${num(t.target)} / ${num(t.stop)}</dd>
-          ${open ? `<dt>Tila</dt><dd>Avoinna</dd>` : `
-          <dt>Suljettu</dt><dd>${dhm(t.exit_time)} · <b>${esc(o.txt || t.outcome)}</b> (${esc(t.reason)}), sulkuhinta ${num(t.exit_price)}</dd>
+          <dt>Avaus</dt><dd>${dhm(t.entry_time)}, toteutunut avaushinta <b>${num(t.entry_price)}</b>${t.entry_ref ? ` (kynttilän avaus ${num(t.entry_ref)})` : ""}</dd>
+          <dt>Suunnitellut sulkurajat</dt><dd>tavoite ${num(t.target)} · stop ${num(t.stop)} · aikaraja ${hm(t.entry_time + 15 * 60000)} (15 min)</dd>
+          ${open ? `
+          <dt>Tila</dt><dd><b>Avoinna</b>, aikarajaan <span class="kc-cd" data-tl="${t.time_limit || ""}"></span></dd>
+          <dt>Kesto tähän asti</dt><dd>${dur(Date.now() - t.entry_time)}</dd>
+          <dt>Nyt ennen kuluja</dt><dd class="${t.gross_now > 0 ? "pos" : t.gross_now < 0 ? "neg" : ""}">${usd(t.gross_now, true)} <span class="kc-muted">(keskihinta ${num(t.price)})</span></dd>
+          <dt>Nyt kulujen jälkeen</dt><dd class="${t.net_now > 0 ? "pos" : t.net_now < 0 ? "neg" : ""}">${usd(t.net_now, true)} <span class="kc-muted">(arvio: sulku bid/ask + liukuma, palkkiot, funding tähän asti)</span></dd>` : `
+          <dt>Toteutunut sulku</dt><dd>${dhm(t.exit_time)} · <b>${esc(o.txt || t.outcome)}</b> · toteutunut sulkuhinta <b>${num(t.exit_price)}</b></dd>
+          <dt>Sulun peruste</dt><dd>${esc(t.reason)}${t.outcome === "tavoite" || t.outcome === "stop" || t.outcome === "epäselvä" ? ` – botti totesi osuman kynttilän ${hm(t.exit_time - 60000)} sulkeutuessa` : ""}</dd>
+          <dt>Kesto</dt><dd>${dur(t.exit_time - t.entry_time)}</dd>
           <dt>Tulos ennen kuluja</dt><dd class="${t.gross_move > 0 ? "pos" : t.gross_move < 0 ? "neg" : ""}">${usd(t.gross_move, true)}</dd>
           <dt>Kulut</dt><dd>${usd(-t.costs)} (palkkiot ${usd(-t.fees)}, spread ja liukuma ${usd(-t.spread_slippage)}, funding ${usd(-t.funding)})</dd>
-          <dt>Tulos kulujen jälkeen</dt><dd class="${t.net > 0 ? "pos" : t.net < 0 ? "neg" : ""}"><b>${usd(t.net, true)}</b></dd>`}
+          <dt>Lopullinen tulos</dt><dd class="${t.net > 0 ? "pos" : t.net < 0 ? "neg" : ""}"><b>${usd(t.net, true)}</b></dd>`}
         </dl>`;
     } else {
       const arr = h.item, s = arr[0];
@@ -251,7 +299,8 @@
     }
     box.innerHTML = html + `<button class="kc-close" type="button">Sulje</button>`;
     box.hidden = false;
-    box.querySelector(".kc-close").addEventListener("click", () => { box.hidden = true; delete selected[sym]; });
+    tickCountdowns();
+    box.querySelector(".kc-close").addEventListener("click", () => { box.hidden = true; delete selected[sym]; saveSel(); });
   }
 
   function renderAll(keepScroll) {
@@ -272,6 +321,16 @@
     if (lastOk && age > 45000) al.push(`Sivu ei ole saanut uutta dataa ${Math.round(age / 1000)} sekuntiin.`);
     document.getElementById("kc-alert").innerHTML = al.map(x => `<div class="alert">${esc(x)}</div>`).join("");
   }
+
+  function tickCountdowns() {
+    document.querySelectorAll(".kc-cd").forEach(e => {
+      const tl = +e.dataset.tl;
+      if (!tl) { e.textContent = "–"; return; }
+      const left = tl - Date.now();
+      e.textContent = left > 0 ? `${dur(left)} jäljellä` : "aikaraja täynnä – botti sulkee seuraavalla kierroksella";
+    });
+  }
+  setInterval(tickCountdowns, 1000);
 
   let busy = false;
   async function load(reset) {
