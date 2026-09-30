@@ -40,6 +40,19 @@ RULES = {
 }
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+# Signaaliselitys: sama tunnistus- ja signaalikoodi kuin botissa (vain luku).
+import sys  # noqa: E402
+sys.path.insert(0, HERE)            # seuranta/kynttilatulkki = identtinen kopio (tests/test_seuranta_kopio.py)
+try:
+    from kynttilatulkki.models import Candle as _Candle
+    from kynttilatulkki.patterns import TUNNISTUS as _TUN, detect as _detect, build_context as _ctx
+    from kynttilatulkki.komponentit import components as _components
+    from kynttilatulkki.strategy import RULESETS as _RULES
+    EXPLAIN_OK = True
+except Exception as _e:          # seuranta toimii ilman selitystä, jos koodia ei ole saatavilla
+    EXPLAIN_OK = False
+    print(f"Signaaliselitys pois käytöstä: {_e}", flush=True)
+
 
 def rules(v: str) -> dict:
     return {**RULES["_"], **RULES.get(v, {})}
@@ -279,7 +292,7 @@ def _fetch_range(sym: str, start_ms: int, end_ms: int) -> None:
         cs = d.get("candles") or []
         for c in cs:
             t = int(c["time"])
-            store[t] = [t, float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"])]
+            store[t] = [t, float(c["open"]), float(c["high"]), float(c["low"]), float(c["close"]), float(c["volume"])]
         if not cs or not d.get("more_candles"):
             break
         nxt = int(cs[-1]["time"]) // 1000 + 60
@@ -340,6 +353,76 @@ def exit_bar(t_exit: int, reason: str) -> int:
     if reason.startswith("stop loss") or reason.startswith("voittotavoite"):
         return t_exit - 60_000
     return t_exit
+
+
+TRADE_KEYS = {"hammer": "Vasara", "inverted_hammer": "Käänteinen vasara", "bullish_engulfing": "Nouseva peittävä",
+              "shooting_star": "Tähdenlento", "hanging_man": "Hirttäytyjä", "bearish_engulfing": "Laskeva peittävä"}
+
+
+def _fmt_cond(e: dict) -> str:
+    v = e["arvo"]
+    v = f"{v:+.2f}" if isinstance(v, (int, float)) and "liike" in e["ehto"] else (f"{v:.2f}" if isinstance(v, float) else str(v))
+    return f"{e['ehto']} = {v} (vaaditaan {e['raja']})"
+
+
+def explain_symbol(sym: str, now: int, n: int = 15) -> list[dict]:
+    """Viimeisten n suljetun kynttilän arvio botin T2-tunnistuksella ja signaaliehdoilla:
+    mitä tunnistettiin ja mikä ehto jäi täyttymättä. Kulusuodatin ja tappiorajat näkyvät
+    botin omista ohitustapahtumista (ne riippuvat tilin tilasta)."""
+    if not EXPLAIN_OK:
+        return []
+    r = _RULES[VERSIONS[0]] if VERSIONS and VERSIONS[0] in _RULES else _RULES["v1.1-T2"]
+    p = _TUN[r.tunnistus]
+    raw = [c for t, c in sorted(_candles.get(sym, {}).items()) if t + 60_000 <= now]
+    cs = []
+    for c in raw:                                  # täytä kauppattomat minuutit kuten botti
+        while cs and cs[-1].open_time + 60_000 < c[0]:
+            q = cs[-1].close
+            cs.append(_Candle(sym, cs[-1].open_time + 60_000, q, q, q, q, 0.0, True, cs[-1].open_time + 119_999))
+        cs.append(_Candle(sym, c[0], c[1], c[2], c[3], c[4], c[5] if len(c) > 5 else 0.0, True, c[0] + 59_999))
+    out = []
+    for i in range(max(p.min_history, len(cs) - n), len(cs)):
+        c, prev = cs[i], cs[max(0, i - 100):i]
+        ctx = _ctx(prev, p)
+        if ctx is None:
+            continue
+        obs = _detect(prev, c, p)
+        rel = c.range / ctx.avg_range if ctx.avg_range else 0.0
+        vr = c.volume / ctx.avg_volume if getattr(ctx, "avg_volume", 0) else 0.0
+        items = []
+        for o in obs:
+            why = []
+            if o.bias not in (r.long_bias, r.short_bias):
+                why.append(f"ei kaupankäyntikuvio säännöissä ({o.bias}; botti käy kauppaa vain kääntymiskuvioilla)")
+            else:
+                if r.require_context and not o.context_ok:
+                    fails = [x for x in o.conditions if not x["ok"]]
+                    want = "nousu" if o.bias == r.short_bias else "lasku"
+                    lim = f"≥ +{p.trend_threshold_atr}" if want == "nousu" else f"≤ −{p.trend_threshold_atr}"
+                    why.append("taustaehto: " + ("; ".join(_fmt_cond(x) for x in fails) if fails else
+                               f"kuvio vaatii edeltävän {want}n (10 min liike {lim} keskim. vaihteluväliä), "
+                               f"oli {ctx.trend_move_atr:+.2f} ({ctx.trend})"))
+                if o.score < r.min_score:
+                    why.append(f"pisteet {o.score} < {r.min_score}")
+                if o.volume_ratio < r.min_volume_ratio:
+                    why.append(f"volyymi {o.volume_ratio:.2f}× < {r.min_volume_ratio}×")
+            side = "long" if o.bias == r.long_bias else "short" if o.bias == r.short_bias else None
+            items.append({"name": o.name, "key": o.key, "bias": o.bias, "side": side, "score": o.score,
+                          "volume": round(o.volume_ratio, 2), "signal": not why and side is not None, "why": why})
+        near = []
+        if not any(it["signal"] for it in items):
+            comp = _components(prev, c, p)
+            for k, nm in TRADE_KEYS.items():
+                x = comp.get(k)
+                if not x or any(it["key"] == k for it in items):
+                    continue
+                fails = [e for e in x["muoto_ehdot"] + x["tausta_ehdot"] if not e["ok"]]
+                if 1 <= len(fails) <= 1:
+                    near.append({"name": nm, "side": "long" if k in ("hammer", "inverted_hammer", "bullish_engulfing") else "short",
+                                 "missing": [_fmt_cond(e) for e in fails]})
+        out.append({"t": c.open_time, "o": c.open, "c": c.close, "rel": round(rel, 2), "vol": round(vr, 2),
+                    "trend": ctx.trend, "trend_move": round(ctx.trend_move_atr, 2), "obs": items, "near": near})
+    return out
 
 
 def build_charts(hours: float) -> dict:
@@ -409,7 +492,18 @@ def build_charts(hours: float) -> dict:
             switch_info = sw[-1]
     errors = list(log_errs) + ([_cstate["error"]] if _cstate["error"] else [])
     last = {s: (candles[s][-1][0] if candles[s] else None) for s in SYMBOLS}
+    with _clock:
+        explain = {s: explain_symbol(s, now) for s in SYMBOLS}
+    last_evt = {}
+    for s in SYMBOLS:
+        evs = [x for x in skips if x["symbol"] == s] + \
+              [{"bot": t["bot"], "version": t["version"], "symbol": s, "side": t["side"], "time": t["entry_time"],
+                "why": "avattu", "reason": t["open_reason"]} for t in trades + opens if t["symbol"] == s]
+        if evs:
+            m = max(x["time"] for x in evs)
+            last_evt[s] = [x for x in evs if x["time"] == m]
     return {"generated": now, "hours": hours, "symbols": SYMBOLS, "candles": candles, "last_candle": last,
+            "explain": explain, "last_bot_event": last_evt, "explain_ok": EXPLAIN_OK,
             "kraken_ok_at": _cstate["ok_at"], "versions": VERSIONS, "trades": trades, "opens": opens,
             "skips": skips, "summary": summary, "seg_summary": seg_summary, "switch": switch_info,
             "errors": errors}

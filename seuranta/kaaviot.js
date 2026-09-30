@@ -89,6 +89,7 @@
     b.className = "kc-chart";
     b.id = "kc-" + sym;
     b.innerHTML = `<div class="kc-head"><b>${esc(sym.replace("PF_", "").replace("USD", "/USD"))}</b> <span class="kc-px"></span> <span class="kc-stale"></span></div>
+      <div class="kc-why"></div>
       <div class="kc-open"></div>
       <div class="kc-body"><div class="kc-scroll"></div><svg class="kc-axis" width="${AXW}" height="${H}"></svg></div>
       <div class="kc-detail" hidden></div>`;
@@ -250,6 +251,10 @@
       tx.textContent = num(Number(p.toPrecision(6)));
     }));
     sc.scrollLeft = atEnd ? sc.scrollWidth : prevLeft;
+    const wb = b.querySelector(".kc-why");
+    wb.innerHTML = whyBlock(sym, d);
+    const det = wb.querySelector("details");
+    if (det) det.addEventListener("toggle", () => { openWhy[sym] = det.open; store.set("openWhy", openWhy); });
     b.querySelector(".kc-open").innerHTML = opens.map(t => `<div class="kc-orow">
       <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"} ${t.bot}</b>
       avattu ${hm(t.entry_time)} @ ${num(t.entry_price)} ·
@@ -340,6 +345,35 @@
     });
   }
   setInterval(tickCountdowns, 1000);
+
+  const openWhy = store.get("openWhy", {});
+  const pct2 = (a, b) => ((b / a - 1) * 100).toLocaleString("fi-FI", {minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "exceptZero"}) + " %";
+  function whyBlock(sym, d) {
+    const ex = (d.explain || {})[sym] || [];
+    const le = (d.last_bot_event || {})[sym];
+    let top;
+    if (le && le.length) {
+      const e = le[0], side = e.side === "long" ? "LONG" : "SHORT";
+      top = `<b>Botin viimeisin signaali:</b> ${hm(e.time)} <b class="${e.side === "long" ? "side-long" : "side-short"}">${side}</b> ${esc(e.reason)} → `
+        + le.map(x => `botti ${x.bot}: ${x.why === "avattu" ? "<b>avattu</b>" : "ohitettu – " + esc(x.why)}`).join("; ");
+    } else {
+      top = `<b>Botin viimeisin signaali:</b> ei signaaleja valitussa aikaikkunassa${d.switch ? ` (vaihdon ${hm(d.switch.time)} jälkeen)` : ""}.`;
+    }
+    const sumObs = x => {
+      if (!x.obs.length) return `ei tunnistettua kuviota (trendi ${x.trend}, ${x.trend_move > 0 ? "+" : ""}${x.trend_move})`;
+      return x.obs.map(o => o.signal ? `<b>${esc(o.name)}: SIGNAALI ${o.side === "long" ? "LONG" : "SHORT"}</b>`
+        : `${esc(o.name)}: <span class="kc-muted">${esc(o.why.join("; "))}</span>`).join("<br>");
+    };
+    const last = ex[ex.length - 1];
+    const lastTxt = last ? `<b>Viimeisin suljettu kynttilä ${hm(last.t)}:</b> ${sumObs(last)}` : "";
+    const rows = ex.slice().reverse().map(x => `<tr><td>${hm(x.t)}</td><td class="${x.c > x.o ? "pos" : x.c < x.o ? "neg" : ""}">${pct2(x.o, x.c)}</td>
+      <td>${x.rel}×</td><td>${x.vol}×</td><td class="l">${x.trend} (${x.trend_move > 0 ? "+" : ""}${x.trend_move})</td>
+      <td class="l kc-wrap">${sumObs(x)}${x.near.length ? `<br><span class="kc-muted">lähellä: ${x.near.map(n => `${esc(n.name)} (${n.side}) – puuttui ${esc(n.missing.join("; "))}`).join(" · ")}</span>` : ""}</td></tr>`).join("");
+    return `<div>${top}</div><div>${lastTxt}</div>
+      <details data-sym="${sym}" ${openWhy[sym] ? "open" : ""}><summary>Viimeiset ${ex.length} kynttilää: havainnot ja hylkäyssyyt</summary>
+      <div class="tbl"><table><thead><tr><th>Aika</th><th>Muutos</th><th>Koko</th><th>Volyymi</th><th class="l">Trendi (10 min)</th><th class="l">Havainto ja syy</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="kc-note">Laskettu seurannassa botin omalla T2-tunnistus- ja signaalikoodilla samoista Krakenin kynttilöistä. Signaaliehdot: kaupankäyntikuvio (vasara, käänteinen vasara, nouseva/laskeva peittävä, tähdenlento, hirttäytyjä), kuvion vaatima edeltävä trendi, pisteet ≥ 2 ja volyymi ≥ 1,2× 20 min keskiarvo. Kulusuodatin ja tappiorajat tarkistetaan vasta signaalin jälkeen, ja niiden tulos näkyy botin signaalirivillä.</div></details>`;
+  }
 
   let busy = false;
   async function load(reset) {
