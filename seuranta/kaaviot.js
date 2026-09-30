@@ -52,18 +52,27 @@
   function markWin() { root.querySelectorAll(".kc-win button").forEach(b => b.classList.toggle("on", +b.dataset.h === hours)); }
   markWin();
 
-  function summary(d) {
+  function sumTable(d, pick) {
     const rows = [];
     d.versions.forEach((v, i) => {
-      const s = d.summary[v];
+      const s = pick(v);
+      if (!s) return;
       ["long", "short"].forEach(side => {
         const x = s[side];
         rows.push(`<tr><td class="l"><span class="sw" style="background:${cssv(BOTCOL[i])}"></span> ${i + 1} · ${esc(v)}</td><td class="l">${side === "long" ? "Long" : "Short"}</td>
           <td>${x.kauppoja}</td><td>${x.tavoite}</td><td>${x.stop}</td><td>${x.aikaraja}</td><td>${x["epäselvä"]}</td><td>${x.avoinna}</td></tr>`);
       });
     });
-    return `<div class="tbl"><table><thead><tr><th class="l">Botti</th><th class="l">Suunta</th><th>Suljettuja</th><th>Tavoite</th><th>Stop</th><th>Aikaraja</th><th>Epäselvä</th><th>Avoinna</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>
-      <div class="kc-note">Koko testijakson luvut. Epäselvä = tavoite ja stop osuivat samaan 1 min kynttilään, eikä järjestystä voi tietää. Botin kirjanpidossa se on kirjattu stopiksi (varovainen oletus).</div>`;
+    return `<div class="tbl"><table><thead><tr><th class="l">Botti</th><th class="l">Suunta</th><th>Suljettuja</th><th>Tavoite</th><th>Stop</th><th>Aikaraja</th><th>Epäselvä</th><th>Avoinna</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  }
+  const coin = s => s.replace("PF_", "").replace("USD", "");
+  function summary(d) {
+    const note = `<div class="kc-note">Epäselvä = tavoite ja stop osuivat samaan 1 min kynttilään, eikä järjestystä voi tietää. Botin kirjanpidossa se on kirjattu stopiksi (varovainen oletus).</div>`;
+    if (!d.switch) return sumTable(d, v => d.summary[v]) + `<div class="kc-note">Koko testijakson luvut.</div>` + note;
+    return `<div class="kc-seg"><b>Markkinavaihdon jälkeen</b> (${dhm(d.switch.time)} alkaen: ${d.switch.new.map(coin).join(", ")})</div>`
+      + sumTable(d, v => d.seg_summary[v] && d.seg_summary[v]["jälkeen"])
+      + `<div class="kc-seg"><b>Ennen markkinavaihtoa</b> (${d.switch.old.map(coin).join(", ")}) – eri kaupankäyntikohteet, ei yhdistetä</div>`
+      + sumTable(d, v => d.seg_summary[v] && d.seg_summary[v]["ennen"]) + note;
   }
 
   function el(tag, attrs, parent) {

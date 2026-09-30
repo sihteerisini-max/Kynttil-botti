@@ -89,6 +89,20 @@ def fetch_tickers() -> dict:
     return out
 
 
+def switches(events: list[dict]) -> list[dict]:
+    return sorted(({"time": e["time"], "old": e["old"], "new": e["new"]} for e in events
+                   if e.get("kind") == "markkinat_vaihdettu"), key=lambda x: x["time"])
+
+
+def segment_stats(rows: list[dict], t_from: int, t_to: int) -> dict:
+    """Suljetut kaupat, jotka AVATTIIN välillä [t_from, t_to)."""
+    xs = [x for x in rows if t_from <= x["entry_time"] < t_to]
+    w = sum(1 for x in xs if x["net"] > 0)
+    return {"trades": len(xs), "wins": w, "win_rate": w / len(xs) if xs else None,
+            "net": round(sum(x["net"] for x in xs), 2), "gross": round(sum(x["gross"] for x in xs), 2),
+            "long": sum(1 for x in xs if x["side"] == "long"), "short": sum(1 for x in xs if x["side"] == "short")}
+
+
 def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: int) -> dict:
     r = rules(v)
     eq0 = r["start_equity"]
@@ -131,7 +145,7 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
             "entry_price": t["entry_price"], "exit_price": t["exit_price"], "qty": t["qty"],
             "costs": round(float(t["fees"]) + float(t["spread_slippage_est"]) + float(t["funding"]), 2),
             "fees": t["fees"], "spread_slippage": t["spread_slippage_est"], "funding": t["funding"],
-            "gross": t["gross_pnl"], "net": net, "reason": t["close_reason"], "open_reason": t["open_reason"],
+            "gross": round(float(t["gross_pnl"]) + float(t["spread_slippage_est"]), 2), "net": net, "reason": t["close_reason"], "open_reason": t["open_reason"],
             "equity_after": round(eq, 2)})
     if day != now // DAY:
         day_blocked = False           # uusi UTC-päivä -> raja nollautuu moottorissa
@@ -197,6 +211,12 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
         "last_skip": ({"time": last_skip["time"], "symbol": last_skip["symbol"], "side": last_skip["side"],
                        "why": last_skip["why"], "reason": last_skip.get("reason", "")} if last_skip else None),
         "skips_today": skip_today, "last_event": last_event,
+        "switches": switches(events),
+        "segments": ([{"label": "Ennen markkinavaihtoa", "from": ms(TEST_START), "to": sw[-1]["time"],
+                       "symbols": sw[-1]["old"], **segment_stats(rows, 0, sw[-1]["time"])},
+                      {"label": "Markkinavaihdon jälkeen", "from": sw[-1]["time"], "to": None,
+                       "symbols": sw[-1]["new"], **segment_stats(rows, sw[-1]["time"], 1 << 62)}]
+                     if (sw := switches(events)) else []),
     }
 
 
@@ -331,6 +351,7 @@ def build_charts(hours: float) -> dict:
         candles = {s: [c for t, c in sorted(_candles.get(s, {}).items()) if t >= w0 - 60_000] for s in SYMBOLS}
         ticks = tickers_cached()
     trades, opens, skips, summary = [], [], [], {}
+    seg_summary, switch_info = {}, None
     for bi, v in enumerate(VERSIONS, start=1):
         tr, ev = logs.get(v, ([], []))
         closed = {t["id"]: t for t in tr}
@@ -369,11 +390,29 @@ def build_charts(hours: float) -> dict:
                 skips.append({"bot": bi, "version": v, "symbol": e["symbol"], "side": e["side"],
                               "time": e["time"], "why": e["why"], "reason": e.get("reason", "")})
         summary[v] = summ
+        sw = switches(ev)
+        if sw:
+            t_sw = sw[-1]["time"]
+            seg = {}
+            for name, cond in (("ennen", lambda x: ms(x["entry_time"]) < t_sw), ("jälkeen", lambda x: ms(x["entry_time"]) >= t_sw)):
+                sm = {side: {"kauppoja": 0, "tavoite": 0, "stop": 0, "aikaraja": 0, "epäselvä": 0, "muu": 0, "avoinna": 0}
+                      for side in ("long", "short")}
+                for t in closed.values():
+                    if cond(t):
+                        sm[t["side"]]["kauppoja"] += 1
+                        sm[t["side"]][outcome(t["close_reason"])] += 1
+                for pid, e in open_ev.items():
+                    if pid not in closed and cond(e):
+                        sm[e["side"]]["avoinna"] += 1
+                seg[name] = sm
+            seg_summary[v] = seg
+            switch_info = sw[-1]
     errors = list(log_errs) + ([_cstate["error"]] if _cstate["error"] else [])
     last = {s: (candles[s][-1][0] if candles[s] else None) for s in SYMBOLS}
     return {"generated": now, "hours": hours, "symbols": SYMBOLS, "candles": candles, "last_candle": last,
             "kraken_ok_at": _cstate["ok_at"], "versions": VERSIONS, "trades": trades, "opens": opens,
-            "skips": skips, "summary": summary, "errors": errors}
+            "skips": skips, "summary": summary, "seg_summary": seg_summary, "switch": switch_info,
+            "errors": errors}
 
 
 def build() -> dict:
@@ -392,8 +431,7 @@ def build() -> dict:
             errors.append(f"[{v}] botin lokeja ei saatu: {e}")
             tr, ev = [], []
         accts.append(account(v, tr, ev, tickers, now))
-    syms = sorted({p["symbol"] for a in accts for p in a["open"]} |
-                  {"PF_XBTUSD", "PF_ETHUSD", "PF_SOLUSD", "PF_ZECUSD", "PF_XRPUSD"})
+    syms = sorted({p["symbol"] for a in accts for p in a["open"]} | set(SYMBOLS))
     return {
         "generated": now, "bot_ok": bot_ok, "errors": errors,
         "test_start": ms(TEST_START), "test_end": ms(TEST_END),

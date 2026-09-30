@@ -84,6 +84,7 @@ class Account:
         self.opened: dict[str, int] = {}
         self.symbols: list[str] | None = None
         self.started_at: int | None = None
+        self.symbol_changes: list[dict] = []     # markkinalistan vaihdot {time, old, new}
         if os.path.exists(self.state_path) and not reset:
             with open(self.state_path, "rb") as f:
                 st = pickle.load(f)
@@ -94,6 +95,7 @@ class Account:
             e.skipped = st.get("skipped", {})
             self.last_closed, self.opened = st["last_closed"], st["opened"]
             self.symbols, self.started_at = st["symbols"], st.get("started_at")
+            self.symbol_changes = st.get("symbol_changes", [])
             print(f"{tag}jatketaan tallennetusta tilasta: pääoma {e.state.equity:,.2f} USD, "
                   f"avoimia positioita {len(e.positions)}", flush=True)
 
@@ -128,7 +130,8 @@ class Account:
         with open(tmp, "wb") as f:
             pickle.dump({"ruleset": self.version, "state": e.state, "positions": e.positions,
                          "analyzers": e.analyzers, "skipped": e.skipped, "last_closed": self.last_closed,
-                         "opened": self.opened, "symbols": self.symbols, "started_at": self.started_at}, f)
+                         "opened": self.opened, "symbols": self.symbols, "started_at": self.started_at,
+                         "symbol_changes": self.symbol_changes}, f)
         os.replace(tmp, self.state_path)
 
     def feed(self, sym: str, cs: list[Candle], entries: bool):
@@ -188,16 +191,38 @@ def main(argv=None) -> None:
     specs = kraken.fetch_instruments()
     accounts = [Account(v, a.state_dir, a.log_dir, tickers, a.reset, specs) for v in versions]
 
-    # Sama markkinalista kaikille tileille: tallennettu lista tai uusi valinta
+    # Sama markkinalista kaikille tileille. Tallennettu lista pysyy, ellei SYMBOLS-muuttujassa
+    # anneta eri listaa: silloin markkinat vaihdetaan (kirjataan), tilit ja säännöt pysyvät ennallaan.
     saved = next((acc.symbols for acc in accounts if acc.symbols), None)
-    if saved:
+    wanted = ([s.strip().upper() for s in a.symbols.split(",") if s.strip()]
+              if a.symbols and a.symbols.upper().startswith("PF_") else None)
+    exit_only: list[str] = []          # poistuneet markkinat, joilla on vielä avoin paperipositio
+    if saved and wanted and wanted != saved:
+        now0 = int(time.time() * 1000)
+        exit_only = [s for s in saved if s not in wanted and any(s in acc.engine.positions for acc in accounts)]
+        for acc in accounts:
+            ch = {"time": now0, "old": list(saved), "new": list(wanted)}
+            acc.symbol_changes.append(ch)
+            acc._on_event({"kind": "markkinat_vaihdettu", "ruleset": acc.version, **ch,
+                           "avoimet_poistuvilla": [s for s in exit_only if s in acc.engine.positions]})
+            for s in saved:
+                if s not in wanted:
+                    acc.engine.pending.pop(s, None)
+        print(f"MARKKINAT VAIHDETTU {ts(now0)}: {', '.join(saved)} -> {', '.join(wanted)}"
+              + (f" | poistuvilla avoimia positioita (vain sulku): {', '.join(exit_only)}" if exit_only else ""),
+              flush=True)
+        symbols = wanted
+    elif saved:
         symbols = saved
-    elif a.symbols and a.symbols.upper().startswith("PF_"):
-        symbols = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
+    elif wanted:
+        symbols = wanted
     else:
         symbols = kraken.top_perpetuals(a.top)
     for acc in accounts:
         acc.symbols = symbols
+        if acc.symbol_changes:
+            print(f"[{acc.version}] markkinavaihdot: " + "; ".join(
+                f"{ts(c['time'])} {','.join(c['new'])}" for c in acc.symbol_changes), flush=True)
 
     print(f"PAPERIKAUPPA – versiot {', '.join(versions)} rinnakkain erillisillä paperitileillä")
     print(f"Kraken Derivatives perpetualit: {', '.join(symbols)}")
@@ -210,7 +235,7 @@ def main(argv=None) -> None:
     # --- lämmittely / kiinniotto (ei uusia kauppoja) ------------------------
     now = int(time.time() * 1000)
     tickers.update(kraken.fetch_tickers())
-    for s in symbols:
+    for s in symbols + exit_only:
         known = [acc.last_closed[s].open_time for acc in accounts if s in acc.last_closed]
         since = (min(known) + MIN) if known else now - 60 * MIN
         since = max(since, now - 24 * 60 * MIN)
@@ -243,14 +268,15 @@ def main(argv=None) -> None:
             except Exception as e:
                 print(f"tickerien haku epäonnistui: {e}", file=sys.stderr, flush=True)
             now = int(time.time() * 1000)
-            for s in symbols:
+            exit_only = [s for s in exit_only if any(s in acc.engine.positions for acc in accounts)]
+            for s in symbols + exit_only:
                 try:
                     cs = kraken.fetch_candles(s, now - 5 * MIN, now + MIN, now_ms=now)
                 except Exception as e:
                     print(f"[{s}] kynttilöiden haku epäonnistui: {e}", file=sys.stderr, flush=True)
                     continue
                 for acc in accounts:
-                    acc.feed(s, cs, entries=True)
+                    acc.feed(s, cs, entries=s in symbols)
             for acc in accounts:
                 acc.save()
             if now - last_status >= 15 * MIN:

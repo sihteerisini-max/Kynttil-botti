@@ -88,6 +88,7 @@ tr:last-child td { border-bottom: 0; }
 .kc-upd { font-size: 13px; color: var(--text-2); }
 .kc-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-2); margin: 6px 0 10px; }
 .kc-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.kc-seg { font-size: 13px; margin: 10px 0 4px; }
 .kc-note, .kc-hint { font-size: 12px; color: var(--muted); margin: 6px 0; }
 .kc-chart { border: 1px solid var(--line); border-radius: 10px; margin-top: 12px; overflow: hidden; }
 .kc-head { padding: 8px 10px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; border-bottom: 1px solid var(--grid); }
@@ -189,6 +190,13 @@ function acctCard(a, i) {
       <div class="kpi"><div class="k">Voittoprosentti</div><div class="v">${a.win_rate == null ? "–" : pct(a.win_rate)}</div><div class="s">nettotulos &gt; 0</div></div>
       <div class="kpi"><div class="k">Suurin pääoman pudotus</div><div class="v">${pct(a.max_dd)}</div><div class="s">toteutuneesta huipusta</div></div>
     </div>
+    ${a.segments && a.segments.length ? `<h3>Kaupat markkinavaihdon mukaan</h3>
+    <div class="tbl"><table><thead><tr><th class="l">Jakso</th><th>Kauppoja</th><th>Long / short</th><th>Voittoja</th><th>Ennen kuluja</th><th>Netto</th></tr></thead><tbody>
+      ${a.segments.map(g => `<tr><td class="l">${esc(g.label)}<br><span class="tag">${fmtT(g.from)}${g.to ? " – " + fmtT(g.to) : " alkaen"} · ${g.symbols.map(x => x.replace("PF_", "").replace("USD", "")).join(", ")}</span></td>
+        <td>${g.trades}</td><td>${g.long} / ${g.short}</td><td>${g.win_rate == null ? "–" : pct(g.win_rate)}</td>
+        <td class="${cls(g.gross)}">${usd(g.gross, true)}</td><td class="${cls(g.net)}">${usd(g.net, true)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="tag">Kaupat jaetaan avausajan mukaan. Tilin pääoma ja pudotus ovat koko testin ajalta, koska tiliä ei nollattu.</div>` : ""}
     <h3>Avoimet positiot</h3>
     ${a.open.length ? `<div class="tbl"><table><thead><tr><th class="l">Markkina</th><th class="l">Suunta</th><th>Avattu</th><th>Avaushinta</th><th>Nykyhinta</th><th>Arvioitu tulos</th><th>Stop</th><th>Tavoite</th></tr></thead><tbody>${openRows}</tbody></table></div>`
       : `<div class="empty">Ei avoimia positioita.</div>`}
