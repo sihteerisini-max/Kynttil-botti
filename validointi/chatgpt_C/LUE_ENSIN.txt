@@ -1,0 +1,10 @@
+SOKKOARVIOINTI – OHJE KÄYTTÄJÄLLE (tätä tiedostoa EI liitetä ChatGPT:hen)
+
+Jotta arviointi on riippumaton:
+1. Avaa ChatGPT:ssä UUSI keskustelu, mieluiten "Temporary chat" / väliaikainen keskustelu,
+   tai kytke Memory (muisti) pois päältä. Muuten ChatGPT voi muistaa aiemmat arviot ja raja-arvot.
+2. Älä liitä keskusteluun mitään muuta kuin osatiedostot sarja_C_osa1.txt ... sarja_C_osa6.txt.
+   Älä kerro aiemmista sarjoista, tuloksista, botista tai raja-arvoista.
+3. Liitä osat yksi kerrallaan ja kopioi jokaisen osan vastauskoodilohko talteen.
+   Parhaiten: jokainen osa omaan uuteen väliaikaiseen keskusteluun.
+4. Lähetä kaikki 6 vastauslohkoa Claudelle. Kerro samalla, miten 1.–3. kohta toteutui.

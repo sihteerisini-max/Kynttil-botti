@@ -74,6 +74,7 @@ def main(argv=None):
     ap.add_argument("--n", type=int, default=3)
     ap.add_argument("--seed", type=int, default=20260929)
     ap.add_argument("--versiot", default="T2,T1", help="ensimmäinen = arvioitava tunnistusmääritelmä, muut vertailuja")
+    ap.add_argument("--ohita", nargs="*", default=[], help="aiempien sarjojen json-tiedostot: niissä näytettyjä kynttilöitä ei käytetä (ei edes historiaikkunassa)")
     ap.add_argument("--alku", help="ota vain kynttilät tästä UTC-hetkestä alkaen (esim. jakson A jälkeen)")
     a = ap.parse_args(argv)
     rnd = random.Random(a.seed)
@@ -84,6 +85,12 @@ def main(argv=None):
         from kynttilatulkki.backtest import parse_date
         alku = parse_date(a.alku)
 
+    shown: dict[str, set] = {}
+    for pth in a.ohita:
+        for it in json.load(open(pth, encoding="utf-8"))["tapaukset"]:
+            sset = shown.setdefault(it["symboli"], set())
+            for c in it["historia"] + [it["kohde"]]:
+                sset.add(c["t"])
     rows = []          # (sym, i, candles, comp)
     for f in sorted(glob.glob(a.data_glob)):
         sym = os.path.basename(f).split("_20")[0]
@@ -94,6 +101,8 @@ def main(argv=None):
                 continue                          # kauppattomia täytettyjä minuutteja ei arvioida
             if alku and c.open_time < alku:
                 continue
+            if shown and any(x.open_time in shown.get(sym, ()) for x in cs[i - WINDOW:i + 1]):
+                continue                          # ikkunassa aiemmin näytetty kynttilä
             comp = {v: components(cs[max(0, i - 100):i], c, TUNNISTUS[v]) for v in versions}
             if all(comp.values()):
                 rows.append((sym, i, cs, comp))

@@ -54,7 +54,7 @@ def vie(tag, osia):
         part = items[k * per:(k + 1) * per]
         if not part:
             continue
-        lines = [f"KYNTTILÄARVIOINTI, sarja {tag}, osa {k + 1}/{osia} (tapaukset {part[0]['id']}–{part[-1]['id']})", "", OHJE,
+        lines = [f"KYNTTILÄARVIOINTI, osa {k + 1}/{osia} (tapaukset {part[0]['id']}–{part[-1]['id']})", "", OHJE,
                  "Lähteet: [SC] StockCharts ChartSchool, Candlestick Pattern Dictionary; "
                  "[TB] Thomas N. Bulkowski, ThePatternSite.com.", "", "=" * 70]
         for it in part:

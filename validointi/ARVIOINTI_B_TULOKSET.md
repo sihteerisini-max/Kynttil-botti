@@ -1,6 +1,6 @@
 # Sokkoarviointi, sarja B: tulokset
 
-**Arvioija: ChatGPT** (tekstimuotoinen numeerinen data, `validointi/chatgpt_B/`), palautettu
+**Arvioija: ChatGPT, EI RIIPPUMATON** (oli nähnyt sarjan A tulokset ja T2:n rajan). Tekstimuotoinen numeerinen data, `validointi/chatgpt_B/`), palautettu
 30.9.2026. Kyse ei ole ihmisen silmämääräisestä arviosta. Arvioitu 66/66
 (`validointi/arviot_B_chatgpt.json`, otos `validointi/arviointi_B.json`).
 Data: 29.9.2026 18:43 – 30.9.2026 14:23 UTC, eli jakson A jälkeen ja ennen katsomatta. Samat
@@ -9,6 +9,8 @@ Arvioitava tunnistusmääritelmä T2 (koon alaraja 0,6 ×), vertailuna T1 (0,3 �
 (10 kynttilää) ja suhteellinen koko (20 kynttilän vertailujakso) arvioitiin erikseen.
 
 ## Otosryhmittäin (T2)
+
+Sarakkeet "Oikein / Väärä hälytys / Löytämättä / Oikein hylätty" kuvaavat yhtäpitävyyttä tämän arvioijan kanssa, eivät objektiivista oikeellisuutta.
 
 | Ryhmä | Osa | Oikein | Väärä hälytys | Löytämättä | Oikein hylätty | Epäselvä (botti kyllä/ei) |
 |---|---|---|---|---|---|---|
@@ -25,19 +27,23 @@ Arvioitava tunnistusmääritelmä T2 (koon alaraja 0,6 ×), vertailuna T1 (0,3 �
 
 | Osa | T2 | T1 |
 |---|---|---|
-| koko | 9 oikein hylätty | 9 väärää hälytystä |
-| koko kuvio | 9 oikein hylätty | 9 väärää hälytystä |
-| muoto, liike | samat molemmissa (muoto 9 oikein, liike 6 oikein) | |
+| koko | 9 samaa mieltä (molemmat hylkäsivät) | 9 erimielisyyttä (botti hyväksyi, arvioija hylkäsi) |
+| koko kuvio | 9 samaa mieltä (molemmat hylkäsivät) | 9 erimielisyyttä (botti hyväksyi, arvioija hylkäsi) |
+| muoto, liike | samat molemmissa (muoto 9 ja liike 6 samaa mieltä) | |
 
-Kaikki 66 tapausta, koon osalta: T2 antoi 0 väärää hälytystä ja 0 löytämättä jäänyttä (3 epäselvää).
-T1 antoi 21 väärää hälytystä.
+Kaikki 66 tapausta, koon osalta: T2:lla ei ollut erimielisyyksiä yksiselitteisissä arvioissa
+(3 epäselvää). T1:llä oli 21 erimielisyyttä, joissa botti hyväksyi ja arvioija hylkäsi.
 
 ## Havainnot
 
-* **Muoto:** ei yhtään väärää hälytystä eikä löytämättä jäänyttä. Epäselviä oli 3, kaikki doji-rajan
-  tuntumassa (runko 13–17 % vaihteluvälistä, botin raja 10 %).
-* **Koko:** ChatGPT:n oma raja asettui välille 0,58 (vielä "ei") – 0,76 ("on"). Tapaukset 0,66 ja
-  0,73 se arvioi epäselviksi. Tulos tukee T2:ta (0,6 ×) ja on T1:n (0,3 ×) vastainen.
+* **Muoto:** ei erimielisyyksiä yksiselitteisissä arvioissa. Epäselviä oli 3:
+  * B001 (doji) ja B025 (käänteinen vasara) olivat doji-rajalla: runko 13 % ja 14 % vaihteluvälistä,
+    botin raja 10 %.
+  * B038 (hirttäytyjä) oli epäselvä ylävarjon takia. Ylävarjo oli 11 % vaihteluvälistä, ja
+    ChatGPT piti tulkinnanvaraisena, onko sitä "vähän tai ei lainkaan".
+* **Koko:** ChatGPT:n raja asettui välille 0,58 (vielä "ei") – 0,76 ("on"). Tapaukset 0,66 ja
+  0,73 se arvioi epäselviksi. **Tämä ei ole riippumaton vahvistus T2:n rajalle**, koska ChatGPT oli
+  nähnyt 0,6:n rajan ennen arviointia (ks. rajoitukset).
 * **Marubozun pituus:** ChatGPT piti kynttilää pitkänä vasta koosta 1,33 × alkaen. Koko 1,21 × oli
   sille epäselvä ja koko ≤ 1,04 × "ei". Tämä on linjassa botin 1,2 ×:n rajan kanssa. Sarjan A
   kaksi päinvastaista tapausta eivät toistuneet, joten marubozun rajaa ei muuteta.
@@ -56,9 +62,11 @@ T1 antoi 21 väärää hälytystä.
 
 * **Arvioija on kielimalli, ei ihminen.** Se sai hinnat numeroina eikä nähnyt kaaviota. Tulos
   mittaa, vastaako botti ChatGPT:n tulkintaa samoista sanallisista määritelmistä.
-* **Riippumattomuus on vielä varmistamatta.** Jos ChatGPT:n keskustelussa oli mukana sarjan A
-  arvioita, raportteja tai T2:n raja 0,6, koon tulos ei ole riippumaton. ChatGPT:n oma raja osui
-  lähelle 0,6:ta.
+* **Arviointi ei ollut riippumaton.** Jesse vahvisti 30.9.2026, että ChatGPT oli ennen sarjan B
+  arviointia nähnyt sarjan A arviot, raportit ja T2:n 0,6 ×:n rajan. Sarja B **ei siksi ole
+  riippumaton vahvistus** T2:lle eikä muillekaan raja-arvoille. Erityisesti kokoehdon yhtäpitävyys
+  voi johtua siitä, että arvioija tunsi rajan. Riippumaton arviointi tehdään sarjalla C uudessa
+  keskustelussa ilman aiempaa aineistoa.
 * Yksi arvioija ja yksi arviointikerta. Satunnaisotoksessa oli vain 1 muodoltaan oikea kuvio,
   joten löytämättä jääneistä muodoista saadaan edelleen vähän tietoa.
 * Jakso on lyhyt (noin 20 tuntia) ja kattaa yhden markkinatilanteen.
