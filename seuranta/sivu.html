@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Paperikaupan seuranta</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f4f2; --surface: #fcfcfb; --line: #e3e2de; --grid: #ecebe7;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #7a7974;
+  --s1: #2a78d6; --s2: #eb6834;
+  --good: #0a7d0a; --bad: #c23434; --warn-bg: #fff4d6; --warn-line: #eda100;
+  --paper-bg: #eef4fc; --paper-line: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110; --surface: #1a1a19; --line: #2e2e2c; --grid: #262624;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e87;
+    --s1: #3987e5; --s2: #d95926;
+    --good: #3cc23c; --bad: #e66767; --warn-bg: #2b2410; --warn-line: #c98500;
+    --paper-bg: #14202f; --paper-line: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110; --surface: #1a1a19; --line: #2e2e2c; --grid: #262624;
+  --text: #ffffff; --text-2: #c3c2b7; --muted: #8f8e87;
+  --s1: #3987e5; --s2: #d95926;
+  --good: #3cc23c; --bad: #e66767; --warn-bg: #2b2410; --warn-line: #c98500;
+  --paper-bg: #14202f; --paper-line: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0; }
+h3 { font-size: 13px; margin: 18px 0 8px; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.paper { background: var(--paper-bg); border: 1px solid var(--paper-line); border-radius: 10px;
+  padding: 10px 14px; margin: 12px 0; font-size: 14px; }
+.paper b { letter-spacing: .02em; }
+.meta { color: var(--text-2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.alert { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 10px; padding: 10px 14px; margin: 12px 0; }
+.card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+.acct-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.tag { font-size: 12px; color: var(--text-2); }
+.status { margin-top: 10px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-size: 14px; }
+.status .lbl { font-weight: 600; }
+.status .sub { color: var(--text-2); font-size: 13px; margin-top: 4px; }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+@media (min-width: 520px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+.kpi { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.kpi .k { font-size: 12px; color: var(--text-2); }
+.kpi .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+.kpi.main { grid-column: 1 / -1; }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+.tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+th { color: var(--text-2); font-weight: 600; background: var(--bg); position: sticky; top: 0; }
+th:first-child, td:first-child, td.l, th.l { text-align: left; }
+tr:last-child td { border-bottom: 0; }
+.empty { color: var(--text-2); font-size: 13px; padding: 10px; }
+.scroll { max-height: 420px; overflow-y: auto; }
+.chart-card { margin-top: 16px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin: 6px 0 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+#chart { width: 100%; height: 260px; position: relative; }
+#chart svg { width: 100%; height: 100%; display: block; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15); display: none; white-space: nowrap; }
+.foot { color: var(--muted); font-size: 12px; margin: 20px 0 8px; }
+.side-long { color: var(--good); font-weight: 600; } .side-short { color: var(--bad); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kynttiläbotti – paperikaupan seuranta</h1>
+  <div class="paper"><b>PAPERIKAUPPAA.</b> Tilit ovat simuloituja (aloituspääoma 10 000 USD kummallakin). Botti ei lähetä oikeita toimeksiantoja eikä käytä oikeaa rahaa. Tämä sivu vain lukee botin lokeja eikä voi muuttaa mitään.</div>
+  <div class="meta" id="meta">Ladataan…</div>
+  <div id="alerts"></div>
+
+  <div class="card chart-card">
+    <h2>Toteutunut tilin arvo</h2>
+    <div class="legend" id="legend"></div>
+    <div id="chart"><div class="tip" id="tip"></div></div>
+    <div class="tag">Vain suljetut kaupat. Avointen positioiden arvioitu tulos ei ole mukana käyrässä.</div>
+  </div>
+
+  <div class="grid2" id="accts"></div>
+
+  <div class="foot">
+    Tilan johtaminen: toteutunut tulos, pudotus ja tappiorajat lasketaan botin kauppalokista samoilla säännöillä kuin moottorissa. Avoimen kaupan tulos on arvio nykyisellä bid/ask-hinnalla, ja siihen sisältyvät arvioitu sulkuliukuma ja palkkio. Fundingia ei ole mukana ennen sulkua. Ajat ovat Suomen aikaa. Sivu päivittyy 30 sekunnin välein.
+  </div>
+</div>
+<script>
+const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const COLORS = ["--s1", "--s2"];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const tz = "Europe/Helsinki";
+const fmtT = t => t == null ? "–" : new Intl.DateTimeFormat("fi-FI", {timeZone: tz, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit"}).format(new Date(t));
+const fmtTs = t => t == null ? "–" : new Intl.DateTimeFormat("fi-FI", {timeZone: tz, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit"}).format(new Date(t));
+const usd = (x, sign) => x == null ? "–" : (sign && x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toLocaleString("fi-FI", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " $";
+const pct = (x, sign) => x == null ? "–" : (sign && x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x * 100).toLocaleString("fi-FI", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " %";
+const px = x => x == null ? "–" : Number(x).toLocaleString("fi-FI", {maximumSignificantDigits: 7});
+const cls = x => x > 0 ? "pos" : x < 0 ? "neg" : "";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const sideTxt = s => `<span class="side-${s}">${s === "long" ? "Long" : "Short"}</span>`;
+const WHY = {"kulusuodatin": "kulusuodatin (liike liian pieni kuluihin nähden)"};
+let DATA = null;
+
+function statusBlock(a) {
+  const labels = {waiting: "Odottaa signaalia", open: "Positio auki", full: "Positiot täynnä",
+    day_blocked: "Päivän tappioraja täynnä", paused: "Tauko", halted: "Pysäytetty"};
+  let sub = "";
+  if (a.status.pause_until) sub += `Tauko päättyy ${fmtT(a.status.pause_until)}. `;
+  if (a.last_skip) {
+    const k = a.last_skip.why.split(":")[0];
+    sub += `Viimeisin signaali ohitettiin ${fmtT(a.last_skip.time)}: ${esc(a.last_skip.symbol)} ${a.last_skip.side}, ${esc(a.last_skip.reason)}. Syy: ${esc(WHY[k] || a.last_skip.why)}.`;
+  } else if (!a.trades && !a.open.length) {
+    sub += "Yhtään signaalia ei ole vielä kirjattu tälle tilille.";
+  }
+  const st = Object.entries(a.skips_today);
+  if (st.length) sub += `<br>Ohitettuja signaaleja tänään (UTC): ${st.map(([k, n]) => `${esc(k)} ${n}`).join(", ")}.`;
+  return `<div class="status"><div class="lbl">${labels[a.status.code] || ""}</div><div>${esc(a.status.text)}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+}
+
+function acctCard(a, i) {
+  const col = css(COLORS[i]);
+  const openRows = a.open.map(p => `<tr><td class="l">${esc(p.symbol)}</td><td class="l">${sideTxt(p.side)}</td>
+    <td>${fmtT(p.entry_time)}</td><td>${px(p.entry_price)}</td><td>${px(p.price)}</td>
+    <td class="${cls(p.est_pnl)}">${usd(p.est_pnl, true)}</td><td>${px(p.stop)}</td><td>${px(p.target)}</td></tr>`).join("");
+  const closedRows = a.closed.map(t => `<tr><td>${fmtT(t.entry_time)}</td><td>${fmtT(t.exit_time)}</td>
+    <td class="l">${esc(t.symbol)}</td><td class="l">${sideTxt(t.side)}</td><td>${px(t.entry_price)}</td><td>${px(t.exit_price)}</td>
+    <td>${usd(t.costs)}</td><td class="${cls(t.net)}">${usd(t.net, true)}</td><td class="l">${esc(t.reason)}</td></tr>`).join("");
+  return `<div class="card">
+    <div class="acct-head"><span class="sw" style="background:${col}"></span><h2>${esc(a.version)}</h2>
+      <span class="tag">${a.version.startsWith("v1.1") ? "ensisijainen" : "toissijainen"} · tunnistus T2 · kulusuodatin R ≥ ${a.min_r_to_cost} × kulut</span></div>
+    ${statusBlock(a)}
+    <div class="kpis">
+      <div class="kpi main"><div class="k">Tilin arvo (toteutunut + avointen arvio)</div><div class="v">${usd(a.value_est)}</div>
+        <div class="s">Aloituspääoma ${usd(a.start_equity)}</div></div>
+      <div class="kpi"><div class="k">Toteutunut nettotulos</div><div class="v ${cls(a.realized_pnl)}">${usd(a.realized_pnl, true)}</div><div class="s ${cls(a.realized_pnl)}">${pct(a.realized_pct, true)}</div></div>
+      <div class="kpi"><div class="k">Avointen arvioitu tulos</div><div class="v ${cls(a.unrealized_pnl)}">${a.open.length ? usd(a.unrealized_pnl, true) : "–"}</div><div class="s">${a.open.length} avoinna</div></div>
+      <div class="kpi"><div class="k">Kauppoja (suljettu)</div><div class="v">${a.trades}</div><div class="s">${a.wins} voitollista</div></div>
+      <div class="kpi"><div class="k">Voittoprosentti</div><div class="v">${a.win_rate == null ? "–" : pct(a.win_rate)}</div><div class="s">nettotulos &gt; 0</div></div>
+      <div class="kpi"><div class="k">Suurin pääoman pudotus</div><div class="v">${pct(a.max_dd)}</div><div class="s">toteutuneesta huipusta</div></div>
+    </div>
+    <h3>Avoimet positiot</h3>
+    ${a.open.length ? `<div class="tbl"><table><thead><tr><th class="l">Markkina</th><th class="l">Suunta</th><th>Avattu</th><th>Avaushinta</th><th>Nykyhinta</th><th>Arvioitu tulos</th><th>Stop</th><th>Tavoite</th></tr></thead><tbody>${openRows}</tbody></table></div>`
+      : `<div class="empty">Ei avoimia positioita.</div>`}
+    <h3>Suljetut kaupat (uusin ensin)</h3>
+    ${a.closed.length ? `<div class="tbl scroll"><table><thead><tr><th>Avattu</th><th>Suljettu</th><th class="l">Markkina</th><th class="l">Suunta</th><th>Avaus</th><th>Sulku</th><th>Kulut</th><th>Nettotulos</th><th class="l">Sulkemisen syy</th></tr></thead><tbody>${closedRows}</tbody></table></div>`
+      : `<div class="empty">Ei vielä suljettuja kauppoja.</div>`}
+  </div>`;
+}
+
+function drawChart(d) {
+  const box = document.getElementById("chart"), tip = document.getElementById("tip");
+  box.querySelector("svg")?.remove();
+  const W = box.clientWidth, H = box.clientHeight, m = {l: 64, r: 12, t: 10, b: 26};
+  const t0 = d.test_start, t1 = Math.max(Math.min(d.generated, d.test_end), t0 + 3600e3);
+  const series = d.accounts.map((a, i) => ({name: a.version, col: css(COLORS[i]),
+    pts: [...a.curve, {t: Math.min(d.generated, d.test_end), eq: a.realized_equity}]}));
+  let lo = Infinity, hi = -Infinity;
+  series.forEach(s => s.pts.forEach(p => { lo = Math.min(lo, p.eq); hi = Math.max(hi, p.eq); }));
+  const pad = Math.max((hi - lo) * 0.15, 50); lo -= pad; hi += pad;
+  const X = t => m.l + (t - t0) / (t1 - t0) * (W - m.l - m.r);
+  const Y = v => m.t + (hi - v) / (hi - lo) * (H - m.t - m.b);
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Toteutunut tilin arvo ajan mukaan, molemmat versiot");
+  let g = "";
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g += `<line x1="${m.l}" x2="${W - m.r}" y1="${y}" y2="${y}" stroke="${css("--grid")}" stroke-width="1"/>`;
+    g += `<text x="${m.l - 6}" y="${y + 4}" text-anchor="end" font-size="11" fill="${css("--text-2")}">${Math.round(v).toLocaleString("fi-FI")}</text>`;
+  }
+  const ticks = Math.min(6, Math.max(2, Math.floor((W - m.l) / 110)));
+  for (let k = 0; k <= ticks; k++) {
+    const t = t0 + (t1 - t0) * k / ticks;
+    g += `<text x="${X(t)}" y="${H - 8}" text-anchor="${k === 0 ? "start" : k === ticks ? "end" : "middle"}" font-size="11" fill="${css("--text-2")}">${fmtT(t)}</text>`;
+  }
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(10000)}" y2="${Y(10000)}" stroke="${css("--muted")}" stroke-dasharray="3 3" stroke-width="1"/>`;
+  series.forEach(s => {
+    let dd = "";
+    s.pts.forEach((p, i) => { dd += (i ? ` H${X(p.t)} V${Y(p.eq)}` : `M${X(p.t)} ${Y(p.eq)}`); });
+    g += `<path d="${dd}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round"/>`;
+  });
+  g += `<line id="xh" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${css("--muted")}" stroke-width="1" visibility="hidden"/>`;
+  svg.innerHTML = g;
+  box.appendChild(svg);
+  const xh = svg.querySelector("#xh");
+  const at = (s, t) => { let v = s.pts[0].eq; for (const p of s.pts) { if (p.t <= t) v = p.eq; else break; } return v; };
+  const move = ev => {
+    const r = box.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    const t = t0 + (cx - m.l) / (W - m.l - m.r) * (t1 - t0);
+    if (t < t0 || t > t1) { xh.setAttribute("visibility", "hidden"); tip.style.display = "none"; return; }
+    xh.setAttribute("x1", cx); xh.setAttribute("x2", cx); xh.setAttribute("visibility", "visible");
+    tip.innerHTML = `<div>${fmtT(t)}</div>` + series.map(s => `<div><span class="sw" style="background:${s.col};width:8px;height:8px"></span> ${esc(s.name)}: <b>${usd(at(s, t))}</b></div>`).join("");
+    tip.style.display = "block";
+    tip.style.left = Math.min(Math.max(cx + 10, 0), W - tip.offsetWidth - 4) + "px";
+    tip.style.top = "8px";
+  };
+  svg.addEventListener("mousemove", move);
+  svg.addEventListener("touchmove", move, {passive: true});
+  svg.addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); tip.style.display = "none"; });
+}
+
+function render(d) {
+  DATA = d;
+  const now = d.generated, day = Math.min(28, Math.max(0, (now - d.test_start) / 864e5));
+  document.getElementById("meta").innerHTML = [
+    `Testijakso ${fmtT(d.test_start)} – ${fmtT(d.test_end)} (päivä ${Math.floor(day) + 1}/28)`,
+    `Botti: ${d.bot_ok ? "vastaa" : "<b class='neg'>ei vastaa</b>"}`,
+    `Botin viimeisin kirjattu tapahtuma: ${fmtT(Math.max(...d.accounts.map(a => a.last_event || 0)) || null)}`,
+    `Krakenin viimeisin kauppa: ${fmtTs(d.kraken_last)}`,
+    `Sivu päivitetty ${fmtTs(now)}`].map(x => `<span>${x}</span>`).join("");
+  const al = [...d.errors];
+  const le = Math.max(...d.accounts.map(a => a.last_event || 0));
+  if (d.bot_ok && le && now - le > 2 * 3600e3) al.push("Botilta ei ole kirjattu yhtään signaalia tai kauppaa yli 2 tuntiin. Tämä voi olla hiljainen markkina, mutta tarkista Railwayn lokit.");
+  document.getElementById("alerts").innerHTML = al.map(x => `<div class="alert">${esc(x)}</div>`).join("");
+  document.getElementById("legend").innerHTML = d.accounts.map((a, i) => `<span><span class="sw" style="background:${css(COLORS[i])}"></span>${esc(a.version)} ${usd(a.realized_equity)}</span>`).join("");
+  document.getElementById("accts").innerHTML = d.accounts.map(acctCard).join("");
+  drawChart(d);
+}
+
+async function load() {
+  try {
+    const r = await fetch(`/api/tila?token=${encodeURIComponent(TOKEN)}`, {cache: "no-store"});
+    if (!r.ok) throw new Error(r.status === 403 ? "Token puuttuu tai on väärä." : `HTTP ${r.status}`);
+    render(await r.json());
+  } catch (e) {
+    document.getElementById("alerts").innerHTML = `<div class="alert">Tietojen haku epäonnistui: ${esc(e.message)}. Yritetään uudelleen 30 sekunnin päästä.</div>`;
+  }
+}
+load();
+setInterval(load, 30000);
+window.addEventListener("resize", () => DATA && drawChart(DATA));
+</script>
+</body>
+</html>

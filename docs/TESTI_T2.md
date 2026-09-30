@@ -48,8 +48,12 @@ vaikutusta kannattavuuteen.
 
 ## 4. Säännöt ja kulumalli (ennallaan, `docs/SAANNOT_v2.md`)
 
+> **Kirjoitusvirheen korjaus 30.9.2026 (testin jo käynnissä):** tässä luki alun perin volyymiehdoksi
+> "≥ 1,5 ×". Lukitussa koodissa ja `docs/SAANNOT_v1.md`:ssä ehto on **≥ 1,2 ×** (1,5 × on vain
+> pisteytyksen lisäpiste). Koodia tai sääntöä ei muutettu – vain tämän kuvauksen virhe korjattiin.
+
 * **Signaali:** vahvistettu kuvio (kynttilä sulkeutunut), pisteet ≥ 2 (kohtalainen), volyymi
-  ≥ 1,5 × 20 edeltävän keskiarvo, taustaehto täyttyy, eikä kynttilässä ole ristiriitaisia kuvioita.
+  ≥ 1,2 × 20 edeltävän keskiarvo, taustaehto täyttyy, eikä kynttilässä ole ristiriitaisia kuvioita.
 * **Avaus:** seuraavan kynttilän avaushinta ± (½ spread + liukuma 0,02 %).
   * Spread tulee Krakenin reaaliaikaisesta tickeristä.
   * Stop on signaalikynttilän ääripää ± 0,1 × keskim. vaihteluväli.
