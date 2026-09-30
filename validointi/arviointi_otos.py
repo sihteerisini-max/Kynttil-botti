@@ -129,7 +129,8 @@ def main(argv=None):
     tpl = open(os.path.join(HERE, "arviointi_pohja.html"), encoding="utf-8").read()
     out = os.path.join(HERE, f"arviointi_{a.tag}.html")
     with open(out, "w", encoding="utf-8") as f:
-        f.write(tpl.replace("__DATA__", blob))
+        f.write(tpl.replace("__DATA__", blob).replace(
+            "<title>Kynttilöiden sokkoarviointi</title>", f"<title>Kynttilöiden sokkoarviointi {a.tag}</title>"))
     with open(os.path.join(HERE, f"arviointi_{a.tag}.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     from collections import Counter
