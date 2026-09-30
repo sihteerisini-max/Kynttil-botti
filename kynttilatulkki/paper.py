@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from .analyzer import SymbolAnalyzer
+from .patterns import TUNNISTUS
 from .models import Candle
 from .patterns import build_context
 from .strategy import DefaultSpec, Ruleset, Signal, estimate_costs, make_signal, size_position
@@ -119,7 +120,7 @@ class PaperEngine:
     # ------------------------------------------------------------------ apu
     def analyzer(self, symbol: str) -> SymbolAnalyzer:
         if symbol not in self.analyzers:
-            self.analyzers[symbol] = SymbolAnalyzer(symbol, max_history=100)
+            self.analyzers[symbol] = SymbolAnalyzer(symbol, TUNNISTUS[self.r.tunnistus], max_history=100)
         return self.analyzers[symbol]
 
     def _event(self, kind: str, **kw):

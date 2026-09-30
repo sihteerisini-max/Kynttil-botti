@@ -57,7 +57,7 @@ DEFAULT = Params()
 
 # Tunnistusmääritelmän versiot. T1 = käytössä kaupankäyntiversioissa v1, v1.1 ja v2 (lukittu).
 # T2 = sokkoarvioinnin (sarja A) perusteella ehdotettu: suhteellisen koon alaraja 0,3 -> 0,6.
-# T2:ta käytetään vain tunnistuksen arviointiin; kaupankäyntisäännöt käyttävät T1:tä.
+# v1/v1.1/v2 käyttävät T1:tä; T2:ta käyttävät vain versiot v1.1-T2 ja v2-T2 (docs/TESTI_T2.md).
 TUNNISTUS = {"T1": DEFAULT, "T2": replace(DEFAULT, min_range_rel=0.60)}
 
 

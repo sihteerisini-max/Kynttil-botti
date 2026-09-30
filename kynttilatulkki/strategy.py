@@ -47,6 +47,7 @@ class Ruleset:
     max_leverage_cap: float = 10.0      # Kraken EEA: enintään 10x -> alkumarginaali vähintään 10 %
     margin_limit: float = 0.5           # käytetty alkumarginaali yhteensä ≤ 50 % pääomasta
     cost_model: str = "v1"              # "v1" = alkuperäinen arvio, "korjattu" = estimate_costs()
+    tunnistus: str = "T1"               # patterns.TUNNISTUS-avain (T1 = alkuperäinen, T2 = koon alaraja 0,6)
     notes: str = ""
 
     def round_trip_cost(self, half_spread: float) -> float:
@@ -140,6 +141,11 @@ RULESETS: dict[str, Ruleset] = {
     "v2": replace(_V1, version="v2", cost_model="korjattu", min_r_to_cost=4.0,
                   notes="v1.1 + kulusuodatin R ≥ 4 × kulut. docs/SAANNOT_v2.md"),
 }
+# Lukittu 30.9.2026 – T2-testi (docs/TESTI_T2.md). Ainoa ero pohjaversioon: tunnistus T2.
+RULESETS["v1.1-T2"] = replace(RULESETS["v1.1"], version="v1.1-T2", tunnistus="T2",
+                              notes="v1.1 + tunnistus T2 (koon alaraja 0,6). docs/TESTI_T2.md")
+RULESETS["v2-T2"] = replace(RULESETS["v2"], version="v2-T2", tunnistus="T2",
+                            notes="v2 + tunnistus T2 (koon alaraja 0,6). docs/TESTI_T2.md")
 
 
 @dataclass

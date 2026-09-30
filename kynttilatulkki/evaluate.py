@@ -129,6 +129,9 @@ def lag1(xs: list[float]) -> float:
 def analyse(name: str, trades: list[dict], d0: int, d1: int, start_equity: float = 10_000.0) -> dict:
     trades = sorted(trades, key=lambda t: t["exit_time"])
     n = len(trades)
+    if not n:
+        print(f"\n=== {name} ===\nEi kauppoja arviointijaksolla.\nTulkinta: KESKENERÄINEN NÄYTTÖ (n = 0)")
+        return {"days": day_table([], d0, d1), "n": 0}
     xs = [t.get("budget_multiple", 0.0) for t in trades]
     net = [t["net_pnl"] for t in trades]
     days = day_table(trades, d0, d1)
@@ -165,13 +168,15 @@ def analyse(name: str, trades: list[dict], d0: int, d1: int, start_equity: float
     print(f"\n=== {name} ===")
     print(f"Kauppoja {n}, kauppapäiviä {active}/{len(days)} | voittoja {wins} "
           f"({(wins / n if n else 0):.0%}, Wilson 95 % {wl:.0%}–{wh:.0%}; olettaa riippumattomuuden)")
-    print(f"Nettotulos {sum(net):+,.2f} USD ({sum(net) / start_equity:+.2%}) | suurin pudotus {mdd:.2%}")
+    print(f"Nettotulos kaikkien kulujen jälkeen {sum(net):+,.2f} USD ({sum(net) / start_equity:+.2%}) | "
+          f"suurin pääoman pudotus {mdd:.2%} (toteutuneista kaupoista)")
     if n:
         costs = sum(t["fees"] + t["spread_slippage_est"] + t["funding"] for t in trades)
         pre = sum(t["gross_pnl"] + t["spread_slippage_est"] for t in trades)
         print(f"Ennen kuluja {pre:+,.2f} USD | toteutuneet kulut {costs:,.2f} USD "
               f"(palkkiot + spread/liukuma + toteutunut funding)")
-        print(f"Keskim. {st.mean(xs):+.3f} x riskibudjetti per kauppa")
+        print(f"Keskim. nettotuotto per kauppa {sum(net) / n:+,.2f} USD "
+              f"({sum(net) / n / start_equity:+.3%} alkupääomasta) = {st.mean(xs):+.3f} x riskibudjetti")
         print(f"  95 % LV päivälohkobootstrap ({DAY_BLOCK} pv):  {lo_d:+.3f} … {hi_d:+.3f}")
         print(f"  95 % LV kauppalohkobootstrap (b={max(2, math.ceil(n ** (1 / 3)))}): {lo_t:+.3f} … {hi_t:+.3f}")
         print(f"  varovaisempi väli tulkintaan:        {lo:+.3f} … {hi:+.3f}")
@@ -185,6 +190,33 @@ def analyse(name: str, trades: list[dict], d0: int, d1: int, start_equity: float
         print("Sulkemissyyt: " + " | ".join(f"{k} {len(v_)} kpl {sum(v_):+,.2f}" for k, v_ in sorted(by.items())))
     print(f"Tulkinta: {v}")
     return {"days": days, "n": n}
+
+
+def quote_sensitivity(events: list[dict], sets: dict[str, list[dict]]) -> None:
+    """Toissijainen herkkyys: paljonko tulos muuttuisi, jos avaus olisi tehty siihen Krakenin
+    noteeraukseen (ask longille, bid shortille, + sama liukuma), joka oli nähtävissä avauksen
+    käsittelyhetkellä, eikä avauskynttilän avaushintaan + kulumalliin. Ei muuta virallista tulosta."""
+    from .strategy import RULESETS
+    opens = [e for e in events if e.get("kind") == "open" and e.get("havaittu_noteeraus")]
+    if not opens:
+        return
+    v = opens[0]["ruleset"]
+    ids = {t["id"] for k, ts_ in sets.items() if k.startswith(v + " ") for t in ts_}
+    slip = RULESETS[v].slippage
+    d, db, k = 0.0, [], 0
+    for e in opens:
+        if ids and e["id"] not in ids:
+            continue
+        q = e["havaittu_noteeraus"]
+        alt = q["ask"] * (1 + slip) if e["side"] == "long" else q["bid"] * (1 - slip)
+        diff = ((alt - e["entry_price"]) if e["side"] == "long" else (e["entry_price"] - alt)) * e["qty"]
+        d += diff
+        k += 1
+        if e.get("risk_budget"):
+            db.append(diff / e["risk_budget"])
+    if k:
+        print(f"\n[{v}] Herkkyys (toissijainen): avaus havaittuun noteeraukseen {k} kaupassa -> tulos "
+              f"muuttuisi {-d:+,.2f} USD (keskim. {-(sum(db) / len(db) if db else 0):+.3f} x budjetti/kauppa)")
 
 
 def load_jsonl(path: str) -> list[dict]:
@@ -218,6 +250,8 @@ def main(argv=None) -> None:
     ap.add_argument("--symbols")
     ap.add_argument("--start", help="arviointijakson alku UTC (oletus: ensimmäinen kauppa)")
     ap.add_argument("--end", help="arviointijakson loppu UTC (oletus: viimeinen kauppa)")
+    ap.add_argument("--events", nargs="*", default=[],
+                    help="tapahtumat_<versio>.jsonl: herkkyys avaukselle havaittuun noteeraukseen")
     a = ap.parse_args(argv)
 
     sets: dict[str, list[dict]] = {}
@@ -239,7 +273,24 @@ def main(argv=None) -> None:
             sets[f"{v} (historiatesti samalta jaksolta)"] = [asdict(t) for t in eng.trades]
         a.start = a.start or a.backtest_start
 
+    if a.start or a.end:     # kiinteä arviointijakso: mukaan kaupat, jotka AVATTIIN jakson aikana
+        from .backtest import parse_date as _pd
+        s0 = (_pd(a.start) // 60_000) * 60_000 if a.start else -1
+        s1 = _pd(a.end) if a.end else 1 << 62
+        sets = {k: [t for t in v if s0 <= ms(t["entry_time"]) < s1] for k, v in sets.items()}
     all_t = [t for ts_ in sets.values() for t in ts_]
+    for p in a.events:
+        quote_sensitivity(load_jsonl(p), sets)
+    if a.railway_log:
+        ev = defaultdict(list)
+        with open(a.railway_log, encoding="utf-8") as f:
+            for line in f:
+                i = line.find("AVAUS_JSON ")
+                if i >= 0:
+                    e = json.loads(line[i + len("AVAUS_JSON "):])
+                    ev[e["ruleset"]].append(e)
+        for v, es in ev.items():
+            quote_sensitivity(list({e["id"]: e for e in es}.values()), sets)
     if not all_t:
         print("Ei kauppoja arvioitavaksi.")
         return

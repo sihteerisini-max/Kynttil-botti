@@ -27,7 +27,7 @@ HOUR = 3_600_000
 
 
 def parse_date(s: str) -> int:
-    dt = datetime.fromisoformat(s)
+    dt = datetime.fromisoformat(s.strip().removesuffix("UTC").strip())
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return int(dt.timestamp() * 1000)

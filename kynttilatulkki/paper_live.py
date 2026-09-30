@@ -5,7 +5,8 @@ datavirrasta ja samasta käynnistyshetkestä:
 
     python -m kynttilatulkki.paper_live --rules v1.1,v2 --top 5
 
-Ympäristömuuttujat (Railway): RULES, SYMBOLS, TOP, INTERVAL, STATE_DIR, LOG_DIR, RESET_STATE.
+Ympäristömuuttujat (Railway): RULES, SYMBOLS, TOP, INTERVAL, STATE_DIR, LOG_DIR, RESET_STATE,
+TEST_DAYS, LOG_TOKEN (+ PORT).
 Kunkin version tila tallennetaan tiedostoon STATE_DIR/paper_<versio>.pkl, joten
 uudelleenkäynnistys jatkaa samasta kohdasta. Katkon aikana suljetut kynttilät
 ajetaan moottorin läpi (stopit/tavoitteet), mutta niistä ei avata uusia kauppoja.
@@ -26,6 +27,42 @@ from .paper import PaperEngine, summarize, ts
 from .strategy import RULESETS
 
 MIN = 60_000
+
+
+def serve_logs(log_dir: str, token: str, port: int) -> None:
+    """Lukuoikeus kauppa- ja tapahtumalokeihin selaimella (vain jos LOG_TOKEN on asetettu):
+    https://<railway-domain>/<tiedosto>?token=<LOG_TOKEN>, esim. /kaupat_v1.1-T2.jsonl"""
+    import re
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs, urlparse
+
+    ok_name = re.compile(r"^(kaupat|tapahtumat)_[A-Za-z0-9.\-]+\.jsonl$")
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            u = urlparse(self.path)
+            name = u.path.lstrip("/")
+            if parse_qs(u.query).get("token", [""])[0] != token:
+                return self.send_error(403)
+            if name == "":
+                body = "\n".join(sorted(f for f in os.listdir(log_dir) if ok_name.match(f))).encode()
+            elif ok_name.match(name) and os.path.exists(os.path.join(log_dir, name)):
+                with open(os.path.join(log_dir, name), "rb") as f:
+                    body = f.read()
+            else:
+                return self.send_error(404)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = ThreadingHTTPServer(("0.0.0.0", port), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    print(f"Lokit luettavissa portissa {port} (LOG_TOKEN vaaditaan)", flush=True)
 
 
 class Account:
@@ -69,6 +106,13 @@ class Account:
         return tk.funding_rel_per_hour if tk else None
 
     def _on_event(self, ev: dict):
+        if ev.get("kind") == "open":
+            # Herkkyystarkistusta varten: Krakenin noteeraus sillä hetkellä, kun avaus käsiteltiin.
+            # Ei vaikuta kauppaan (avaushinta = avauskynttilän avaus + kulumalli, kuten historiatestissä).
+            tk = self.tickers.get(ev.get("symbol"))
+            ev["havaittu_noteeraus"] = ({"bid": tk.bid, "ask": tk.ask, "t": int(time.time() * 1000)}
+                                        if tk else None)
+            print(f"AVAUS_JSON {json.dumps(ev, ensure_ascii=False, default=str)}", flush=True)
         self.events_f.write(json.dumps(ev, ensure_ascii=False, default=str) + "\n")
         self.events_f.flush()
 
@@ -137,6 +181,9 @@ def main(argv=None) -> None:
     os.makedirs(a.log_dir, exist_ok=True)
     os.makedirs(a.state_dir, exist_ok=True)
 
+    if env("LOG_TOKEN"):
+        serve_logs(a.log_dir, env("LOG_TOKEN"), int(env("PORT", "8080")))
+
     tickers: dict[str, kraken.Ticker] = {}
     specs = kraken.fetch_instruments()
     accounts = [Account(v, a.state_dir, a.log_dir, tickers, a.reset, specs) for v in versions]
@@ -157,7 +204,8 @@ def main(argv=None) -> None:
     miss = [s for s in symbols if s not in specs]
     print("Sopimustiedot: " + ", ".join(f"{s} askel {specs[s].qty_step:g}" for s in symbols if s in specs)
           + (f" | PUUTTUU (ei kauppoja näissä): {', '.join(miss)}" if miss else ""))
-    print("Ei oikeita toimeksiantoja. Säännöt: docs/SAANNOT_v1.md, docs/SAANNOT_v2.md\n", flush=True)
+    print("Ei oikeita toimeksiantoja. Säännöt: docs/SAANNOT_v1.md, docs/SAANNOT_v2.md, docs/TESTI_T2.md")
+    print(f"Koodiversio (commit): {os.environ.get('RAILWAY_GIT_COMMIT_SHA', 'tuntematon')}\n", flush=True)
 
     # --- lämmittely / kiinniotto (ei uusia kauppoja) ------------------------
     now = int(time.time() * 1000)
@@ -176,8 +224,12 @@ def main(argv=None) -> None:
         acc.started_at = acc.started_at or start
         acc.save()
     starts = {acc.started_at for acc in accounts}
-    print(f"JAKSO B – tilien todellinen aloitushetki: "
+    print(f"Tilien todellinen aloitushetki: "
           + ", ".join(f"{acc.version} {ts(acc.started_at)}" for acc in accounts))
+    test_days = float(os.environ.get("TEST_DAYS", "28"))
+    for acc in accounts:
+        print(f"TESTIJAKSO [{acc.version}]: {ts(acc.started_at)} – "
+              f"{ts(acc.started_at + int(test_days * 24 * 60 * MIN))} (kiinteä, {test_days:g} vrk)")
     if len(starts) > 1:
         print("VAROITUS: tilien aloitushetket eroavat – versioiden vertailu ei ole samalta jaksolta.")
     print(flush=True)

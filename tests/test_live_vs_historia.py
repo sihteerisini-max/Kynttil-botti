@@ -17,6 +17,12 @@ M = 60_000
 
 class TestLiveVastaaHistoriaa(unittest.TestCase):
     def test_samat_kaupat(self):
+        self._aja(("v1.1", "v2"))
+
+    def test_samat_kaupat_T2(self):
+        self._aja(("v1.1-T2", "v2-T2"))
+
+    def _aja(self, versiot):
         data = {s: synthetic(s, T0, 700, seed=i + 1) for i, s in enumerate(["PF_A", "PF_B"])}
         stop_at = T0 + 600 * M
         clock = [T0 + 20 * M + 5_000]
@@ -46,9 +52,9 @@ class TestLiveVastaaHistoriaa(unittest.TestCase):
                 mock.patch.object(paper_live.time, "time", lambda: clock[0] / 1000), \
                 mock.patch.object(paper_live.time, "sleep", sleep), \
                 mock.patch("builtins.print"):
-            paper_live.main(["--rules", "v1.1,v2", "--state-dir", d, "--log-dir", d])
+            paper_live.main(["--rules", ",".join(versiot), "--state-dir", d, "--log-dir", d])
             live = {}
-            for v in ("v1.1", "v2"):
+            for v in versiot:
                 with open(os.path.join(d, f"kaupat_{v}.jsonl")) as f:
                     live[v] = [json.loads(x) for x in f]
 
@@ -56,10 +62,10 @@ class TestLiveVastaaHistoriaa(unittest.TestCase):
         fund = {s: {T0 + h * 3_600_000: 0.00001 for h in range(24)} for s in data}
         key = lambda t: (t["symbol"], t["side"], t["entry_time"], round(t["entry_price"], 6),
                          t["exit_time"], round(t["exit_price"], 6), t["close_reason"], round(t["net_pnl"], 3))
-        for v in ("v1.1", "v2"):    # kaksi rinnakkaista tiliä, kumpikin = oma historiatestinsä
+        for v in versiot:    # kaksi rinnakkaista tiliä, kumpikin = oma historiatestinsä
             bt = run(cut, v, {s: 0.0001 for s in data}, fund, log=lambda m: None, specs=specs)
             b = [key(asdict(t)) for t in bt.trades if t.close_reason != "testijakson loppu"]
-            self.assertGreater(len(b), 0 if v == "v2" else 1)
+            self.assertGreater(len(b), 0 if v.startswith("v2") else 1)
             self.assertEqual(b, [key(t) for t in live[v]], v)
 
 
