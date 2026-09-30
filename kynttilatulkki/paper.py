@@ -46,6 +46,8 @@ class Position:
     bars_held: int = 0
     risk_budget: float = 0.0   # USD: suunniteltu kokonaistappio stopissa (kulut mukana)
     margin: float = 0.0        # sidottu alkumarginaali USD
+    signaalityyppi: str = "kääntyminen"
+    cost_to_r: float = 0.0     # stop-skenaarion kustannusarvio / R avaushetkellä (vain tieto)
 
 
 @dataclass
@@ -75,6 +77,27 @@ class Trade:
     equity_after: float
     risk_budget: float = 0.0          # suunniteltu kokonaistappio stopissa (USD)
     budget_multiple: float = 0.0      # nettotulos / riskibudjetti (−1 = täysi suunniteltu tappio)
+    lopputulos: str = ""              # tavoite / stop / aikaraja / epäselvä / muu (ks. lopputulos())
+    entry_ref: float = 0.0            # avauskynttilän avaushinta ennen spreadia ja liukumaa
+    exit_ref: float = 0.0             # sulun viitehinta (tavoite, stop tai kynttilän avaus) ennen kuluja
+    hintaliike_pnl: float = 0.0       # qty × hintaliike viitehinnasta viitehintaan = tulos ennen KAIKKIA kuluja
+    risk_r_price: float = 0.0         # R hinnan yksiköissä (|toteutunut avaushinta − stop|)
+    signaalityyppi: str = ""          # kääntyminen / jatkuminen
+    cost_to_r: float = 0.0            # stop-skenaarion kustannusarvio / R avaushetkellä
+
+
+def lopputulos(reason: str) -> str:
+    """Sulkemissyy -> ajoituksen lopputulosluokka. Jos stop ja tavoite osuvat samaan kynttilään,
+    järjestystä ei voi 1 min datasta tietää -> 'epäselvä' (kirjanpidossa stop ensin, varovainen)."""
+    if "samassa kynttilässä" in reason:
+        return "epäselvä"
+    if reason.startswith("voittotavoite") or reason.startswith("tavoite"):
+        return "tavoite"
+    if reason.startswith("stop"):
+        return "stop"
+    if reason.startswith("aikaraja"):
+        return "aikaraja"
+    return "muu"
 
 
 @dataclass
@@ -99,6 +122,7 @@ class PaperEngine:
                  log: Callable[[str], None] = print,
                  on_trade: Callable[[Trade], None] | None = None,
                  on_event: Callable[[dict], None] | None = None,
+                 on_signal: Callable[[object, int], None] | None = None,
                  verbose_signals: bool = True,
                  specs: dict | None = None):
         self.r = rules
@@ -109,12 +133,14 @@ class PaperEngine:
         self.on_trade = on_trade
         self.on_event = on_event
         self.verbose_signals = verbose_signals
+        self.on_signal = on_signal        # vain havainnointiin (ajoitusseuranta), ei vaikuta kauppoihin
         self.state = EngineState(equity=rules.start_equity, peak=rules.start_equity)
         self.positions: dict[str, Position] = {}
         self.pending: dict[str, Signal] = {}
         self.analyzers: dict[str, SymbolAnalyzer] = {}
         self.trades: list[Trade] = []
         self.skipped: dict[str, int] = {}
+        self.last_signal_open: dict[str, int] = {}   # markkina -> viimeisimmän avatun signaalikynttilän aika
         self.allow_entries = True         # False esim. uudelleenkäynnistyksen kiinniottovaiheessa
 
     # ------------------------------------------------------------------ apu
@@ -183,6 +209,8 @@ class PaperEngine:
         events = an.update(c)
         obs = [o for e in events if e.kind == "confirmed" for o in e.observations]
         sig = make_signal(c, obs, ctx, self.r)
+        if sig and self.on_signal:
+            self.on_signal(sig, t_close)
         if sig and self.allow_entries:
             if c.symbol in self.positions:
                 self._skip(sig, t_close, "markkinassa on jo avoin positio")
@@ -203,6 +231,8 @@ class PaperEngine:
             return self._skip(sig, t, f"päivän tappioraja ({r.daily_loss_limit:.0%}) täynnä")
         if t < s.pause_until:
             return self._skip(sig, t, f"tauko {r.max_consecutive_losses} peräkkäisen tappion jälkeen")
+        if sig.candle.open_time <= self.last_signal_open.get(sig.symbol, -1):
+            return self._skip(sig, t, "sama signaali on jo avattu kerran")
         if sig.symbol in self.positions:
             return self._skip(sig, t, "markkinassa on jo avoin positio")
         if len(self.positions) >= r.max_positions:
@@ -228,7 +258,9 @@ class PaperEngine:
             if sz.qty <= 0:
                 return self._skip(sig, t, f"koko alle pienimmän kaupattavan askeleen (raja: {sz.binding})")
             return self._open(sig, t, price, entry, sz.qty, risk_r, hs, sz.risk_budget, sz.margin,
-                              f" | raja: {sz.binding}, marginaali {sz.margin:,.0f} USD ({sz.initial_margin_rate:.0%})")
+                              f" | raja: {sz.binding}, marginaali {sz.margin:,.0f} USD ({sz.initial_margin_rate:.0%})"
+                              f" | kulut {ce.stop_cost_estimate / risk_r:.2f} R",
+                              cost_to_r=ce.stop_cost_estimate / risk_r)
         else:   # alkuperäinen v1 (säilytetään jakson A toistettavuuden vuoksi)
             entry = price * (1 + hs + r.slippage) if long else price * (1 - hs - r.slippage)
             if (long and entry <= sig.stop) or (not long and entry >= sig.stop):
@@ -247,14 +279,16 @@ class PaperEngine:
         return self._open(sig, t, price, entry, qty, risk_r, hs, budget, 0.0, "")
 
     def _open(self, sig: Signal, t: int, price: float, entry: float, qty: float, risk_r: float,
-              hs: float, budget: float, margin: float, note: str) -> None:
+              hs: float, budget: float, margin: float, note: str, cost_to_r: float = 0.0) -> None:
         r, s = self.r, self.state
         long = sig.side == "long"
         target = entry + r.target_r * risk_r if long else entry - r.target_r * risk_r
         pos = Position(s.next_id, sig.symbol, sig.side, t, price, entry, qty, sig.stop, target,
                        risk_r, qty * entry * r.taker_fee, hs, sig.reason(), sig.candle.open_time,
-                       risk_budget=budget, margin=margin)
+                       risk_budget=budget, margin=margin, signaalityyppi=getattr(sig, "tyyppi", "kääntyminen"),
+                       cost_to_r=round(cost_to_r, 4))
         s.next_id += 1
+        self.last_signal_open[sig.symbol] = sig.candle.open_time
         self.positions[sig.symbol] = pos
         self.log(f"[{sig.symbol} {ts(t)}] AVAUS #{pos.id} {sig.side.upper()} @ {entry:.6g} "
                  f"(avaus {price:.6g} + spread/liukuma) | koko {qty:.6g} = {qty * entry:,.0f} USD | "
@@ -308,7 +342,10 @@ class PaperEngine:
                    pos.stop, round(pos.target, 8), pos.reason, reason, pos.bars_held,
                    round(gross, 4), round(fees, 4), round(funding, 4), round(spread_slip, 4),
                    round(net, 4), round(net / (pos.qty * pos.risk_r), 3), round(s.equity, 2),
-                   round(pos.risk_budget, 4), round(net / pos.risk_budget, 3) if pos.risk_budget else 0.0)
+                   round(pos.risk_budget, 4), round(net / pos.risk_budget, 3) if pos.risk_budget else 0.0,
+                   lopputulos(reason), pos.entry_ref, ref,
+                   round(pos.qty * ((ref - pos.entry_ref) if long else (pos.entry_ref - ref)), 4),
+                   round(pos.risk_r, 10), getattr(pos, "signaalityyppi", ""), getattr(pos, "cost_to_r", 0.0))
         self.trades.append(tr)
         sign = "+" if net >= 0 else ""
         self.log(f"[{pos.symbol} {ts(t)}] SULKU #{pos.id} {pos.side.upper()} @ {exit_price:.6g} – syy: {reason}\n"

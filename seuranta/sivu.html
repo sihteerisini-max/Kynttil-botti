@@ -137,6 +137,7 @@ tr:last-child td { border-bottom: 0; }
   </div>
 
   <div class="grid2" id="accts"></div>
+  <div class="card" id="archive" style="margin-top:16px" hidden></div>
 
   <div class="foot">
     Tilan johtaminen: toteutunut tulos, pudotus ja tappiorajat lasketaan botin kauppalokista samoilla säännöillä kuin moottorissa. Avoimen kaupan tulos on arvio nykyisellä bid/ask-hinnalla, ja siihen sisältyvät arvioitu sulkuliukuma ja palkkio. Fundingia ei ole mukana ennen sulkua. Ajat ovat Suomen aikaa. Tilitiedot päivittyvät 30 sekunnin ja kaaviot 10 sekunnin välein.
@@ -183,8 +184,8 @@ function acctCard(a, i) {
     <td class="l">${esc(t.symbol)}</td><td class="l">${sideTxt(t.side)}</td><td>${px(t.entry_price)}</td><td>${px(t.exit_price)}</td>
     <td>${usd(t.costs)}</td><td class="${cls(t.net)}">${usd(t.net, true)}</td><td class="l">${esc(t.reason)}</td></tr>`).join("");
   return `<div class="card">
-    <div class="acct-head"><span class="sw" style="background:${col}"></span><h2>${esc(a.version)}</h2>
-      <span class="tag">${a.version.startsWith("v1.1") ? "ensisijainen" : "toissijainen"} · tunnistus T2 · kulusuodatin R ≥ ${a.min_r_to_cost} × kulut</span></div>
+    <div class="acct-head"><span class="sw" style="background:${col}"></span><h2>${esc(a.label ? a.label.name + " (" + a.label.short + ")" : a.version)}</h2>
+      <span class="tag">${esc(a.label ? a.label.desc : a.version)}</span></div>
     ${statusBlock(a)}
     <div class="kpis">
       <div class="kpi main"><div class="k">Tilin arvo (toteutunut + avointen arvio)</div><div class="v">${usd(a.value_est)}</div>
@@ -280,6 +281,14 @@ function render(d) {
   document.getElementById("alerts").innerHTML = al.map(x => `<div class="alert">${esc(x)}</div>`).join("");
   document.getElementById("legend").innerHTML = d.accounts.map((a, i) => `<span><span class="sw" style="background:${css(COLORS[i])}"></span>${esc(a.version)} ${usd(a.realized_equity)}</span>`).join("");
   document.getElementById("accts").innerHTML = d.accounts.map(acctCard).join("");
+  const ar = document.getElementById("archive");
+  if (d.archived && d.archived.length) {
+    ar.hidden = false;
+    ar.innerHTML = `<h2>Arkistoidut testivaiheet</h2><div class="tag">Eri sääntöversiot – tuloksia ei yhdistetä nykyiseen vaiheeseen. Historia säilyy botin lokeissa.</div>
+      <div class="tbl" style="margin-top:8px"><table><thead><tr><th class="l">Versio</th><th class="l">Säännöt</th><th>Alkoi</th><th>Viimeinen kauppa</th><th>Kauppoja</th><th>Voitto-%</th><th>Netto</th><th>Suurin pudotus</th></tr></thead><tbody>
+      ${d.archived.map(a => `<tr><td class="l">${esc(a.version)}</td><td class="l">${esc(a.label.desc)}</td><td>${fmtT(a.test_start)}</td><td>${fmtT(a.last_trade)}</td><td>${a.trades}</td><td>${a.win_rate == null ? "–" : pct(a.win_rate)}</td><td class="${cls(a.realized_pnl)}">${usd(a.realized_pnl, true)}</td><td>${pct(a.max_dd)}</td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
   drawChart(d);
 }
 

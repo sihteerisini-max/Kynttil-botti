@@ -93,6 +93,7 @@ class Account:
             e = self.engine
             e.state, e.positions, e.analyzers = st["state"], st["positions"], st["analyzers"]
             e.skipped = st.get("skipped", {})
+            e.last_signal_open = st.get("last_signal_open", {})
             self.last_closed, self.opened = st["last_closed"], st["opened"]
             self.symbols, self.started_at = st["symbols"], st.get("started_at")
             self.symbol_changes = st.get("symbol_changes", [])
@@ -130,6 +131,7 @@ class Account:
         with open(tmp, "wb") as f:
             pickle.dump({"ruleset": self.version, "state": e.state, "positions": e.positions,
                          "analyzers": e.analyzers, "skipped": e.skipped, "last_closed": self.last_closed,
+                         "last_signal_open": e.last_signal_open,
                          "opened": self.opened, "symbols": self.symbols, "started_at": self.started_at,
                          "symbol_changes": self.symbol_changes}, f)
         os.replace(tmp, self.state_path)
@@ -152,6 +154,43 @@ class Account:
         if forming and entries:
             f = forming[-1]
             if self.opened.get(sym, 0) < f.open_time:
+                eng.on_bar_open(sym, f.open_time, f.open)
+                self.opened[sym] = f.open_time
+        eng.allow_entries = True
+
+    def feed_many(self, batch: dict[str, list[Candle]], entries_for) -> None:
+        """Syöttää usean markkinan kynttilät AIKAJÄRJESTYKSESSÄ kuten historiatesti: kullakin
+        minuutilla ensin kaikkien markkinoiden avaukset, sitten kaikkien sulkeutumiset. Näin yhden
+        markkinan kynttilän sulku (esim. vapautuva positiopaikka tai muuttunut pääoma) ei vaikuta
+        toisen markkinan saman minuutin avaukseen."""
+        eng = self.engine
+        closed_by_t: dict[int, list[Candle]] = {}
+        forming: dict[str, Candle] = {}
+        for sym, cs in batch.items():
+            lc = self.last_closed.get(sym)
+            closed = [c for c in cs if c.closed and (lc is None or c.open_time > lc.open_time)]
+            if closed and lc is not None:
+                closed = kraken.fill_gaps([lc] + closed)[1:]
+            for c in closed:
+                closed_by_t.setdefault(c.open_time, []).append(c)
+            fm = [c for c in cs if not c.closed]
+            if fm:
+                forming[sym] = fm[-1]
+        for t in sorted(closed_by_t):
+            bar = sorted(closed_by_t[t], key=lambda c: c.symbol)
+            for c in bar:
+                eng.allow_entries = entries_for(c.symbol)
+                if self.opened.get(c.symbol, 0) < t:
+                    eng.on_bar_open(c.symbol, t, c.open)
+                    self.opened[c.symbol] = t
+            for c in bar:
+                eng.allow_entries = entries_for(c.symbol)
+                eng.on_bar_close(c)
+                self.last_closed[c.symbol] = c
+        for sym in sorted(forming):
+            f = forming[sym]
+            if entries_for(sym) and self.opened.get(sym, 0) < f.open_time:
+                eng.allow_entries = True
                 eng.on_bar_open(sym, f.open_time, f.open)
                 self.opened[sym] = f.open_time
         eng.allow_entries = True
@@ -229,7 +268,9 @@ def main(argv=None) -> None:
     miss = [s for s in symbols if s not in specs]
     print("Sopimustiedot: " + ", ".join(f"{s} askel {specs[s].qty_step:g}" for s in symbols if s in specs)
           + (f" | PUUTTUU (ei kauppoja näissä): {', '.join(miss)}" if miss else ""))
-    print("Ei oikeita toimeksiantoja. Säännöt: docs/SAANNOT_v1.md, docs/SAANNOT_v2.md, docs/TESTI_T2.md")
+    print("Ei oikeita toimeksiantoja. Säännöt: docs/SAANNOT_v2.md, docs/TESTI_T2.md, docs/AJOITUSTESTI_1.md")
+    for acc in accounts:
+        print(f"[{acc.version}] {acc.rules.notes}")
     print(f"Koodiversio (commit): {os.environ.get('RAILWAY_GIT_COMMIT_SHA', 'tuntematon')}\n", flush=True)
 
     # --- lämmittely / kiinniotto (ei uusia kauppoja) ------------------------
@@ -246,7 +287,15 @@ def main(argv=None) -> None:
     start = int(time.time() * 1000)
     for acc in accounts:
         acc.engine.pending.clear()
-        acc.started_at = acc.started_at or start
+        if not acc.started_at:
+            acc.started_at = start
+            r = acc.rules
+            acc._on_event({"kind": "testi_alkoi", "ruleset": acc.version, "time": start, "symbols": symbols,
+                           "test_days": float(os.environ.get("TEST_DAYS", "28")),
+                           "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", ""),
+                           "rules": {"signaalit": r.signaalit, "tunnistus": r.tunnistus, "target_r": r.target_r,
+                                     "min_r_to_cost": r.min_r_to_cost, "max_hold_bars": r.max_hold_bars,
+                                     "risk_per_trade": r.risk_per_trade, "notes": r.notes}})
         acc.save()
     starts = {acc.started_at for acc in accounts}
     print(f"Tilien todellinen aloitushetki: "
@@ -269,14 +318,14 @@ def main(argv=None) -> None:
                 print(f"tickerien haku epäonnistui: {e}", file=sys.stderr, flush=True)
             now = int(time.time() * 1000)
             exit_only = [s for s in exit_only if any(s in acc.engine.positions for acc in accounts)]
+            batch = {}
             for s in symbols + exit_only:
                 try:
-                    cs = kraken.fetch_candles(s, now - 5 * MIN, now + MIN, now_ms=now)
+                    batch[s] = kraken.fetch_candles(s, now - 5 * MIN, now + MIN, now_ms=now)
                 except Exception as e:
                     print(f"[{s}] kynttilöiden haku epäonnistui: {e}", file=sys.stderr, flush=True)
-                    continue
-                for acc in accounts:
-                    acc.feed(s, cs, entries=s in symbols)
+            for acc in accounts:
+                acc.feed_many(batch, lambda sym: sym in symbols)
             for acc in accounts:
                 acc.save()
             if now - last_status >= 15 * MIN:

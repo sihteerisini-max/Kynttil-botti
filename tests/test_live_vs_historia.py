@@ -22,6 +22,9 @@ class TestLiveVastaaHistoriaa(unittest.TestCase):
     def test_samat_kaupat_T2(self):
         self._aja(("v1.1-T2", "v2-T2"))
 
+    def test_samat_kaupat_ajoitus(self):
+        self._aja(("aj1-kaanto", "aj1-jatko"))
+
     def _aja(self, versiot):
         data = {s: synthetic(s, T0, 700, seed=i + 1) for i, s in enumerate(["PF_A", "PF_B"])}
         stop_at = T0 + 600 * M

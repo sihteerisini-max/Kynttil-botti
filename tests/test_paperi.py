@@ -21,12 +21,13 @@ def c(t, o, h, l, cl, sym="PF_TST", v=100.0):
     return Candle(sym, t, o, h, l, cl, v, True, t + M - 1)
 
 
-def sig(side="long", stop=99.0, sym="PF_TST"):
-    return Signal(sym, side, c(T0 - M, 100, 100.5, 99.2, 100), stop, 0.5, [])
+def sig(side="long", stop=99.0, sym="PF_TST", t=T0):
+    """Signaalikynttilä = avauskynttilää edeltävä minuutti (jokainen signaali on eri kynttilästä)."""
+    return Signal(sym, side, c(t - M, 100, 100.5, 99.2, 100), stop, 0.5, [])
 
 
 def open_long(e, price=100.0, stop=99.0, t=T0):
-    e.pending["PF_TST"] = sig("long", stop)
+    e.pending["PF_TST"] = sig("long", stop, t=t)
     e.on_bar_open("PF_TST", t, price)
     return e.positions["PF_TST"]
 
@@ -110,7 +111,7 @@ class TestStopTavoiteAika(unittest.TestCase):
 
 class TestTappiorajat(unittest.TestCase):
     def _lose(self, e, t, sym="PF_TST"):
-        e.pending[sym] = sig("long", 99.0, sym)
+        e.pending[sym] = sig("long", 99.0, sym, t)
         e.on_bar_open(sym, t, 100.0)
         e.on_bar_close(c(t, 100, 100.1, 98.0, 98.5, sym=sym))
 
@@ -338,3 +339,17 @@ class TestKokorajat(unittest.TestCase):
         e.on_bar_open("PF_TST", T0, 100.0)
         self.assertEqual(e.positions, {})
         self.assertIn("sopimustiedot puuttuvat (koko- ja marginaalirajoja ei voi tarkistaa)", e.skipped)
+
+
+class TestSamaSignaali(unittest.TestCase):
+    def test_sama_signaali_ei_avaa_toista_kertaa(self):
+        e = engine(R1)
+        s1 = sig("long", 99.0, t=T0)
+        e.pending["PF_TST"] = s1
+        e.on_bar_open("PF_TST", T0, 100.0)
+        e.on_bar_close(c(T0, 100, 100.1, 98.0, 98.5))          # stop -> suljettu
+        self.assertEqual(len(e.trades), 1)
+        e.pending["PF_TST"] = s1                                # sama signaalikynttilä uudelleen
+        e.on_bar_open("PF_TST", T0 + 2 * M, 100.0)
+        self.assertEqual(len(e.positions), 0)
+        self.assertIn("sama signaali on jo avattu kerran", e.skipped)

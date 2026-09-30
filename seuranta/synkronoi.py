@@ -3,7 +3,7 @@ Seuranta on oma Railway-palvelunsa, jonka juurihakemisto on seuranta/, joten koo
 import os
 import shutil
 
-MODULES = ["models", "patterns", "komponentit", "strategy"]
+MODULES = ["models", "patterns", "komponentit", "strategy", "jatkuminen"]
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":

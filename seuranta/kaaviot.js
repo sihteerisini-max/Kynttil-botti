@@ -36,7 +36,7 @@
       <span><svg width="14" height="12"><path d="M7 1 L13 11 L1 11 Z" fill="${cssv("--good")}"/></svg> long avattu</span>
       <span><svg width="14" height="12"><path d="M1 1 L13 1 L7 11 Z" fill="${cssv("--bad")}"/></svg> short avattu</span>
       <span><svg width="14" height="12"><path d="M7 1 L13 11 L1 11 Z" fill="none" stroke="${cssv("--good")}" stroke-width="1.5"/></svg><svg width="14" height="12"><path d="M1 1 L13 1 L7 11 Z" fill="none" stroke="${cssv("--bad")}" stroke-width="1.5"/></svg> tunnistettu, ei avattu</span>
-      <span>merkin numero: <b>1</b> = v1.1-T2, <b>2</b> = v2-T2</span>
+      <span id="kc-leglabels"></span>
       <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--good")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> suunniteltu tavoite</span>
       <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--bad")}" stroke-width="1.5" stroke-dasharray="4 3"/></svg> suunniteltu stop</span>
       <span><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="${cssv("--s1")}" stroke-width="2"/></svg> avoimen position avaushinta</span>
@@ -59,7 +59,8 @@
       if (!s) return;
       ["long", "short"].forEach(side => {
         const x = s[side];
-        rows.push(`<tr><td class="l"><span class="sw" style="background:${cssv(BOTCOL[i])}"></span> ${i + 1} · ${esc(v)}</td><td class="l">${side === "long" ? "Long" : "Short"}</td>
+        const L = (d.labels || {})[v] || {short: i + 1, name: v};
+        rows.push(`<tr><td class="l"><span class="sw" style="background:${cssv(BOTCOL[i])}"></span> ${esc(L.short)} · ${esc(L.name)}</td><td class="l">${side === "long" ? "Long" : "Short"}</td>
           <td>${x.kauppoja}</td><td>${x.tavoite}</td><td>${x.stop}</td><td>${x.aikaraja}</td><td>${x["epäselvä"]}</td><td>${x.avoinna}</td></tr>`);
       });
     });
@@ -174,8 +175,8 @@
         const tx = el("text", {x: Math.min(xNow + 6, W - 4), y: Y(p) - 4, "font-size": 10, "font-weight": 700, fill: cssv(c), "text-anchor": xNow + 150 > W ? "end" : "start"}, svg);
         tx.textContent = txt;
       };
-      lab(t.target, `Tavoite ${num(t.target)} (${t.bot})`, "--good");
-      lab(t.stop, `Stop ${num(t.stop)} (${t.bot})`, "--bad");
+      lab(t.target, `Tavoite ${num(t.target)} (${t.label || t.bot})`, "--good");
+      lab(t.stop, `Stop ${num(t.stop)} (${t.label || t.bot})`, "--bad");
       // aikarajan hetki pystyviivana
       if (t.time_limit) {
         const xl = XT(t.time_limit);
@@ -203,14 +204,14 @@
       if (!inWin(t.entry_time)) return;
       const x = X(t.entry_time), y = markY(t.entry_time, t.side, slotK(t.entry_time, t.side));
       tri(x, y, t.side, cssv(t.side === "long" ? "--good" : "--bad"), cssv("--surface"));
-      label(x + 8, y, String(t.bot), cssv("--text"));
+      label(x + 8, y, String(t.label || t.bot), cssv("--text"));
       hits.push({x, y, kind: "trade", item: t});
     });
     sk.forEach((arr, k) => {
       const s = arr[0];
       const x = X(s.time), y = markY(s.time, s.side, slotK(s.time, s.side));
       tri(x, y, s.side, "none", cssv(s.side === "long" ? "--good" : "--bad"));
-      label(x + 8, y, arr.map(a => a.bot).join(","), cssv("--muted"));
+      label(x + 8, y, arr.map(a => a.label || a.bot).join(","), cssv("--muted"));
       hits.push({x, y, kind: "skip", item: arr});
     });
     // toteutuneet sulut: todellinen sulkuhetki ja toteutunut sulkuhinta
@@ -219,7 +220,7 @@
       const o = OUT[t.outcome] || OUT.muu;
       const x = XT(t.exit_time), y = Y(t.exit_price);
       el("circle", {cx: x, cy: y, r: 6, fill: cssv(o.col), stroke: cssv("--surface"), "stroke-width": 2}, svg);
-      label(x + 8, y, o.ch + t.bot, cssv(o.col));
+      label(x + 8, y, o.ch + (t.label || t.bot), cssv(o.col));
       hits.push({x, y, kind: "trade", item: t});
     });
     // napautusalueet
@@ -256,7 +257,7 @@
     const det = wb.querySelector("details");
     if (det) det.addEventListener("toggle", () => { openWhy[sym] = det.open; store.set("openWhy", openWhy); });
     b.querySelector(".kc-open").innerHTML = opens.map(t => `<div class="kc-orow">
-      <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"} ${t.bot}</b>
+      <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"} ${t.label || t.bot}</b> <span class="kc-muted">${esc(t.type || "")}</span>
       avattu ${hm(t.entry_time)} @ ${num(t.entry_price)} ·
       <span style="color:${cssv("--good")}">tavoite ${num(t.target)}</span> ·
       <span style="color:${cssv("--bad")}">stop ${num(t.stop)}</span> ·
@@ -286,12 +287,13 @@
     if (h.kind === "trade") {
       const t = h.item, open = t.exit_time == null;
       const o = OUT[t.outcome] || {};
-      html = `<div class="kc-dh"><span class="sw" style="background:${cssv(BOTCOL[t.bot - 1])}"></span> <b>Botti ${t.bot} · ${esc(t.version)}</b> · <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"}</b> · paperikauppa #${t.id}</div>
+      html = `<div class="kc-dh"><span class="sw" style="background:${cssv(BOTCOL[t.bot - 1])}"></span> <b>${esc(((DATA.labels || {})[t.version] || {}).name || t.version)} (${esc(t.label || t.bot)})</b> · <b class="${t.side === "long" ? "side-long" : "side-short"}">${t.side === "long" ? "LONG" : "SHORT"}</b> · paperikauppa #${t.id}</div>
         <dl class="kc-dl">
+          <dt>Signaalityyppi</dt><dd>${esc(t.type || "kääntyminen")}</dd>
           <dt>Avausperuste</dt><dd>${esc(t.open_reason)}</dd>
           <dt>Signaalikynttilä</dt><dd>${dhm(t.signal_time)} (vahvistui ${t.signal_time ? hm(t.signal_time + 60000) : "–"})</dd>
           <dt>Avaus</dt><dd>${dhm(t.entry_time)}, toteutunut avaushinta <b>${num(t.entry_price)}</b>${t.entry_ref ? ` (kynttilän avaus ${num(t.entry_ref)})` : ""}</dd>
-          <dt>Suunnitellut sulkurajat</dt><dd>tavoite ${num(t.target)} · stop ${num(t.stop)} · aikaraja ${hm(t.entry_time + 15 * 60000)} (15 min)</dd>
+          <dt>Suunnitellut sulkurajat</dt><dd>tavoite ${num(t.target)} · stop ${num(t.stop)} · aikaraja ${hm(t.entry_time + 15 * 60000)} (15 min)${t.cost_to_r ? ` · arvioidut kulut ${Number(t.cost_to_r).toLocaleString("fi-FI", {maximumFractionDigits: 2})} R` : ""}</dd>
           ${open ? `
           <dt>Tila</dt><dd><b>Avoinna</b>, aikarajaan <span class="kc-cd" data-tl="${t.time_limit || ""}"></span></dd>
           <dt>Kesto tähän asti</dt><dd>${dur(Date.now() - t.entry_time)}</dd>
@@ -309,7 +311,7 @@
       html = `<div class="kc-dh"><b>Tunnistettu signaali – EI avattu</b> · <b class="${s.side === "long" ? "side-long" : "side-short"}">${s.side === "long" ? "LONG" : "SHORT"}</b></div>
         <dl class="kc-dl"><dt>Signaali</dt><dd>${esc(s.reason)}</dd>
         <dt>Avaus olisi ollut</dt><dd>${dhm(s.time)}</dd>
-        ${arr.map(a => `<dt>Botti ${a.bot} · ${esc(a.version)}</dt><dd>${esc(a.why)}</dd>`).join("")}</dl>`;
+        ${arr.map(a => `<dt>${esc(((DATA.labels || {})[a.version] || {}).name || a.version)} (${esc(a.label || a.bot)})</dt><dd>hylkäyssyy: ${esc(a.why)}</dd>`).join("")}</dl>`;
     }
     box.innerHTML = html + `<button class="kc-close" type="button">Sulje</button>`;
     box.hidden = false;
@@ -319,6 +321,8 @@
 
   function renderAll(keepScroll) {
     const d = DATA;
+    const ll = document.getElementById("kc-leglabels");
+    if (ll) ll.innerHTML = "merkin kirjain: " + d.versions.map(v => `<b>${esc((d.labels[v] || {}).short || v)}</b> = ${esc((d.labels[v] || {}).name || v)}`).join(", ");
     document.getElementById("kc-summary").innerHTML = summary(d);
     d.symbols.forEach(s => render(s, d, keepScroll));
   }
@@ -355,14 +359,18 @@
     if (le && le.length) {
       const e = le[0], side = e.side === "long" ? "LONG" : "SHORT";
       top = `<b>Botin viimeisin signaali:</b> ${hm(e.time)} <b class="${e.side === "long" ? "side-long" : "side-short"}">${side}</b> ${esc(e.reason)} → `
-        + le.map(x => `botti ${x.bot}: ${x.why === "avattu" ? "<b>avattu</b>" : "ohitettu – " + esc(x.why)}`).join("; ");
+        + le.map(x => `${esc(((d.labels || {})[x.version] || {}).name || x.version)}: ${x.why === "avattu" ? "<b>avattu</b>" : "ohitettu – " + esc(x.why)}`).join("; ");
     } else {
       top = `<b>Botin viimeisin signaali:</b> ei signaaleja valitussa aikaikkunassa${d.switch ? ` (vaihdon ${hm(d.switch.time)} jälkeen)` : ""}.`;
     }
     const sumObs = x => {
-      if (!x.obs.length) return `ei tunnistettua kuviota (trendi ${x.trend}, ${x.trend_move > 0 ? "+" : ""}${x.trend_move})`;
-      return x.obs.map(o => o.signal ? `<b>${esc(o.name)}: SIGNAALI ${o.side === "long" ? "LONG" : "SHORT"}</b>`
-        : `${esc(o.name)}: <span class="kc-muted">${esc(o.why.join("; "))}</span>`).join("<br>");
+      const k = !x.obs.length ? `K: ei kääntymiskuviota`
+        : x.obs.map(o => o.signal ? `<b>K: ${esc(o.name)} – SIGNAALI ${o.side === "long" ? "LONG" : "SHORT"}</b>`
+          : `K: ${esc(o.name)} – <span class="kc-muted">${esc(o.why.join("; "))}</span>`).join("<br>");
+      const j = !(x.jatko || []).length ? `J: <span class="kc-muted">ei trendiä (${x.trend_move > 0 ? "+" : ""}${x.trend_move}), jatkumista ei arvioida</span>`
+        : x.jatko.map(q => q.signal ? `<b>J: jatkuminen – SIGNAALI ${q.side === "long" ? "LONG" : "SHORT"}</b>`
+          : `J: jatkuminen ${q.side} – <span class="kc-muted">puuttui ${esc(q.missing.join("; "))}</span>`).join("<br>");
+      return k + "<br>" + j;
     };
     const last = ex[ex.length - 1];
     const lastTxt = last ? `<b>Viimeisin suljettu kynttilä ${hm(last.t)}:</b> ${sumObs(last)}` : "";
@@ -372,7 +380,7 @@
     return `<div>${top}</div><div>${lastTxt}</div>
       <details data-sym="${sym}" ${openWhy[sym] ? "open" : ""}><summary>Viimeiset ${ex.length} kynttilää: havainnot ja hylkäyssyyt</summary>
       <div class="tbl"><table><thead><tr><th>Aika</th><th>Muutos</th><th>Koko</th><th>Volyymi</th><th class="l">Trendi (10 min)</th><th class="l">Havainto ja syy</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <div class="kc-note">Laskettu seurannassa botin omalla T2-tunnistus- ja signaalikoodilla samoista Krakenin kynttilöistä. Signaaliehdot: kaupankäyntikuvio (vasara, käänteinen vasara, nouseva/laskeva peittävä, tähdenlento, hirttäytyjä), kuvion vaatima edeltävä trendi, pisteet ≥ 2 ja volyymi ≥ 1,2× 20 min keskiarvo. Kulusuodatin ja tappiorajat tarkistetaan vasta signaalin jälkeen, ja niiden tulos näkyy botin signaalirivillä.</div></details>`;
+      <div class="kc-note">Laskettu seurannassa botin omalla koodilla samoista Krakenin kynttilöistä. <b>Kääntyminen (K):</b> vasara, käänteinen vasara, nouseva/laskeva peittävä, tähdenlento tai hirttäytyjä + kuvion vaatima edeltävä trendi, pisteet ≥ 2, volyymi ≥ 1,2×. <b>Jatkuminen (J):</b> trendi (10 min liike ≥ 1,5 keskim. vaihteluväliä), samansuuntainen kynttilä: runko ≥ 50 %, koko ≥ 1,0×, päätös uloimmassa 25 %:ssa ja uuteen 10 min ääripäähän, volyymi ≥ 1,2×. Tappiorajat ja positiorajat tarkistetaan signaalin jälkeen; niiden tulos näkyy botin signaalirivillä.</div></details>`;
   }
 
   let busy = false;

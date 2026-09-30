@@ -48,6 +48,7 @@ class Ruleset:
     margin_limit: float = 0.5           # käytetty alkumarginaali yhteensä ≤ 50 % pääomasta
     cost_model: str = "v1"              # "v1" = alkuperäinen arvio, "korjattu" = estimate_costs()
     tunnistus: str = "T1"               # patterns.TUNNISTUS-avain (T1 = alkuperäinen, T2 = koon alaraja 0,6)
+    signaalit: str = "kaanto"           # "kaanto" = kääntymiskuviot, "jatko" = jatkumissignaali (jatkuminen.py)
     notes: str = ""
 
     def round_trip_cost(self, half_spread: float) -> float:
@@ -146,8 +147,14 @@ RULESETS["v1.1-T2"] = replace(RULESETS["v1.1"], version="v1.1-T2", tunnistus="T2
                               notes="v1.1 + tunnistus T2 (koon alaraja 0,6). docs/TESTI_T2.md")
 RULESETS["v2-T2"] = replace(RULESETS["v2"], version="v2-T2", tunnistus="T2",
                             notes="v2 + tunnistus T2 (koon alaraja 0,6). docs/TESTI_T2.md")
-
-
+# Lukittu 30.9.2026 – AJOITUSTESTI 1 (docs/AJOITUSTESTI_1.md). Pohja v1.1-T2; muutokset:
+# kulusuodatin pois avausten esteenä (kulut lasketaan ja kirjataan), tavoite 1 R (stop 1 R, aikaraja 15 min).
+# Kaksi erillistä paperitiliä: kääntymissignaalit (T2) ja jatkumissignaalit.
+_AJ = replace(RULESETS["v1.1-T2"], min_r_to_cost=0.0, target_r=1.0)
+RULESETS["aj1-kaanto"] = replace(_AJ, version="aj1-kaanto", signaalit="kaanto",
+                                 notes="Ajoitustesti 1: T2-kääntymissignaalit, ei kulusuodatinta, 1 R / 1 R / 15 min")
+RULESETS["aj1-jatko"] = replace(_AJ, version="aj1-jatko", signaalit="jatko",
+                                notes="Ajoitustesti 1: jatkumissignaali, ei kulusuodatinta, 1 R / 1 R / 15 min")
 @dataclass
 class Signal:
     symbol: str
@@ -156,8 +163,12 @@ class Signal:
     stop: float
     avg_range: float
     observations: list[Observation] = field(default_factory=list)
+    tyyppi: str = "kääntyminen"      # "kääntyminen" | "jatkuminen"
+    kuvaus: str = ""                 # jatkumissignaalin peruste
 
     def reason(self) -> str:
+        if self.kuvaus:
+            return self.kuvaus
         parts = []
         for o in self.observations:
             parts.append(f"{o.name} (pisteet {o.score}/{o.strength}, volyymi {o.volume_ratio:.1f}x)")
@@ -183,6 +194,21 @@ def make_signal(candle: Candle, obs: Sequence[Observation], ctx: Context | None,
                 r: Ruleset) -> Signal | None:
     if ctx is None or not candle.closed:
         return None
+    if r.signaalit == "jatko":
+        from .jatkuminen import signaali as jatko
+        hit = jatko(ctx, candle)
+        if not hit:
+            return None
+        side, cs = hit
+        buf = r.stop_buffer_atr * ctx.avg_range
+        stop = candle.low - buf if side == "long" else candle.high + buf
+        vol = next(x["arvo"] for x in cs if x["ehto"].startswith("volyymi"))
+        size = next(x["arvo"] for x in cs if x["ehto"].startswith("vaihteluväli"))
+        kuv = (f"Jatkuminen {'nousussa' if side == 'long' else 'laskussa'}: "
+               f"{'nouseva' if side == 'long' else 'laskeva'} kynttilä {size:.1f}x keskikoko, päätös "
+               f"{'uuteen 10 min huippuun' if side == 'long' else 'uuteen 10 min pohjaan'}, "
+               f"trendi {ctx.trend_move_atr:+.1f}, volyymi {vol:.1f}x")
+        return Signal(candle.symbol, side, candle, stop, ctx.avg_range, [], "jatkuminen", kuv)
     sides: dict[str, list[Observation]] = {"long": [], "short": []}
     for o in obs:
         s = qualifies(o, r)

@@ -37,8 +37,21 @@ RULES = {
               max_positions=3, min_volume_ratio=1.2, max_hold_min=15),
     "v1.1-T2": dict(min_r_to_cost=2.0),
     "v2-T2": dict(min_r_to_cost=4.0),
+    "aj1-kaanto": dict(min_r_to_cost=0.0),
+    "aj1-jatko": dict(min_r_to_cost=0.0),
 }
 HERE = os.path.dirname(os.path.abspath(__file__))
+ARCHIVED = [v.strip() for v in os.environ.get("ARCHIVED", "").split(",") if v.strip()]
+LABELS = {
+    "aj1-kaanto": {"short": "K", "name": "Kääntyminen", "desc": "T2-kääntymiskuviot · tavoite 1 R, stop 1 R, aikaraja 15 min · ei kulusuodatinta"},
+    "aj1-jatko": {"short": "J", "name": "Jatkuminen", "desc": "jatkumissignaali · tavoite 1 R, stop 1 R, aikaraja 15 min · ei kulusuodatinta"},
+    "v1.1-T2": {"short": "1", "name": "v1.1-T2", "desc": "T2-kääntymiskuviot · tavoite 1,5 R · kulusuodatin R ≥ 2 × kulut"},
+    "v2-T2": {"short": "2", "name": "v2-T2", "desc": "T2-kääntymiskuviot · tavoite 1,5 R · kulusuodatin R ≥ 4 × kulut"},
+}
+
+
+def label(v: str) -> dict:
+    return LABELS.get(v, {"short": v[:2], "name": v, "desc": v})
 
 # Signaaliselitys: sama tunnistus- ja signaalikoodi kuin botissa (vain luku).
 import sys  # noqa: E402
@@ -48,6 +61,7 @@ try:
     from kynttilatulkki.patterns import TUNNISTUS as _TUN, detect as _detect, build_context as _ctx
     from kynttilatulkki.komponentit import components as _components
     from kynttilatulkki.strategy import RULESETS as _RULES
+    from kynttilatulkki.jatkuminen import ehdot as _jatko_ehdot
     EXPLAIN_OK = True
 except Exception as _e:          # seuranta toimii ilman selitystä, jos koodia ei ole saatavilla
     EXPLAIN_OK = False
@@ -116,8 +130,17 @@ def segment_stats(rows: list[dict], t_from: int, t_to: int) -> dict:
             "long": sum(1 for x in xs if x["side"] == "long"), "short": sum(1 for x in xs if x["side"] == "short")}
 
 
+def test_window(events: list[dict]) -> tuple[int, int]:
+    st = [e for e in events if e.get("kind") == "testi_alkoi"]
+    if st:
+        t0 = st[0]["time"]
+        return t0, t0 + int(float(st[0].get("test_days", 28)) * 86_400_000)
+    return ms(TEST_START), ms(TEST_END)
+
+
 def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: int) -> dict:
     r = rules(v)
+    t_start, t_end = test_window(events)
     eq0 = r["start_equity"]
     by_id = {}
     for t in trades:
@@ -129,7 +152,7 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
     mdd = 0.0
     day, day_start, day_pnl, day_blocked = None, eq0, 0.0, False
     streak, pause_until, halted = 0, 0, False
-    curve = [{"t": ms(TEST_START), "eq": eq0}]
+    curve = [{"t": t_start, "eq": eq0}]
     rows = []
     for t in closed:
         te = ms(t["exit_time"])
@@ -158,6 +181,7 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
             "entry_price": t["entry_price"], "exit_price": t["exit_price"], "qty": t["qty"],
             "costs": round(float(t["fees"]) + float(t["spread_slippage_est"]) + float(t["funding"]), 2),
             "fees": t["fees"], "spread_slippage": t["spread_slippage_est"], "funding": t["funding"],
+            "type": t.get("signaalityyppi") or "kääntyminen", "outcome": outcome(t["close_reason"]),
             "gross": round(float(t["gross_pnl"]) + float(t["spread_slippage_est"]), 2), "net": net, "reason": t["close_reason"], "open_reason": t["open_reason"],
             "equity_after": round(eq, 2)})
     if day != now // DAY:
@@ -214,7 +238,8 @@ def account(v: str, trades: list[dict], events: list[dict], tickers: dict, now: 
         code, msg = "waiting", "Odottaa signaalia. Kaupankäyntiä estäviä rajoja ei ole voimassa."
 
     return {
-        "version": v, "min_r_to_cost": r["min_r_to_cost"], "start_equity": eq0,
+        "version": v, "min_r_to_cost": r["min_r_to_cost"], "start_equity": eq0, "label": label(v),
+        "test_start": t_start, "test_end": t_end,
         "realized_equity": round(eq, 2), "realized_pnl": round(eq - eq0, 2),
         "realized_pct": (eq - eq0) / eq0, "unrealized_pnl": round(unreal, 2),
         "value_est": round(eq + unreal, 2), "trades": len(rows), "wins": wins,
@@ -420,8 +445,14 @@ def explain_symbol(sym: str, now: int, n: int = 15) -> list[dict]:
                 if 1 <= len(fails) <= 1:
                     near.append({"name": nm, "side": "long" if k in ("hammer", "inverted_hammer", "bullish_engulfing") else "short",
                                  "missing": [_fmt_cond(e) for e in fails]})
+        jatko = []
+        for side in (["short"] if ctx.trend == "lasku" else ["long"] if ctx.trend == "nousu" else []):
+            cs_ = _jatko_ehdot(ctx, c, side)
+            jatko.append({"side": side, "signal": all(x["ok"] for x in cs_),
+                          "missing": [_fmt_cond(x) for x in cs_ if not x["ok"]]})
         out.append({"t": c.open_time, "o": c.open, "c": c.close, "rel": round(rel, 2), "vol": round(vr, 2),
-                    "trend": ctx.trend, "trend_move": round(ctx.trend_move_atr, 2), "obs": items, "near": near})
+                    "trend": ctx.trend, "trend_move": round(ctx.trend_move_atr, 2), "obs": items, "near": near,
+                    "jatko": jatko})
     return out
 
 
@@ -457,7 +488,8 @@ def build_charts(hours: float) -> dict:
                 "gross_move": round(float(t["gross_pnl"]) + float(t["spread_slippage_est"]), 2),
                 "fees": t["fees"], "spread_slippage": t["spread_slippage_est"], "funding": t["funding"],
                 "costs": round(float(t["fees"]) + float(t["spread_slippage_est"]) + float(t["funding"]), 2),
-                "net": t["net_pnl"]})
+                "net": t["net_pnl"], "type": t.get("signaalityyppi") or "kääntyminen",
+                "cost_to_r": t.get("cost_to_r") or oe.get("cost_to_r"), "label": label(v)["short"]})
         for pid, e in open_ev.items():
             if pid in closed:
                 continue
@@ -466,11 +498,12 @@ def build_charts(hours: float) -> dict:
                           "signal_time": e.get("signal_time"),
                           "entry_time": ms(e["entry_time"]), "entry_price": e["entry_price"],
                           "entry_ref": e.get("entry_ref"), "stop": e["stop"], "target": e["target"],
-                          "qty": e["qty"], "open_reason": e.get("reason", ""),
+                          "qty": e["qty"], "open_reason": e.get("reason", ""), "label": label(v)["short"],
+                          "type": e.get("signaalityyppi") or "kääntyminen", "cost_to_r": e.get("cost_to_r"),
                           **open_estimate(e, v, ticks.get(e["symbol"], {}), now)})
         for e in ev:
             if e.get("kind") == "skipped" and e["time"] >= w0 - 60_000:
-                skips.append({"bot": bi, "version": v, "symbol": e["symbol"], "side": e["side"],
+                skips.append({"bot": bi, "version": v, "label": label(v)["short"], "symbol": e["symbol"], "side": e["side"],
                               "time": e["time"], "why": e["why"], "reason": e.get("reason", "")})
         summary[v] = summ
         sw = switches(ev)
@@ -497,13 +530,14 @@ def build_charts(hours: float) -> dict:
     last_evt = {}
     for s in SYMBOLS:
         evs = [x for x in skips if x["symbol"] == s] + \
-              [{"bot": t["bot"], "version": t["version"], "symbol": s, "side": t["side"], "time": t["entry_time"],
+              [{"bot": t["bot"], "version": t["version"], "label": t["label"], "symbol": s, "side": t["side"], "time": t["entry_time"],
                 "why": "avattu", "reason": t["open_reason"]} for t in trades + opens if t["symbol"] == s]
         if evs:
             m = max(x["time"] for x in evs)
             last_evt[s] = [x for x in evs if x["time"] == m]
     return {"generated": now, "hours": hours, "symbols": SYMBOLS, "candles": candles, "last_candle": last,
             "explain": explain, "last_bot_event": last_evt, "explain_ok": EXPLAIN_OK,
+            "labels": {v: label(v) for v in VERSIONS},
             "kraken_ok_at": _cstate["ok_at"], "versions": VERSIONS, "trades": trades, "opens": opens,
             "skips": skips, "summary": summary, "seg_summary": seg_summary, "switch": switch_info,
             "errors": errors}
@@ -525,10 +559,21 @@ def build() -> dict:
             errors.append(f"[{v}] botin lokeja ei saatu: {e}")
             tr, ev = [], []
         accts.append(account(v, tr, ev, tickers, now))
+    archived = []
+    for v in ARCHIVED:
+        try:
+            a = account(v, fetch_log(f"kaupat_{v}.jsonl"), fetch_log(f"tapahtumat_{v}.jsonl"), {}, now)
+            archived.append({k: a[k] for k in ("version", "label", "trades", "wins", "win_rate", "realized_pnl",
+                                               "realized_pct", "max_dd", "test_start")}
+                            | {"last_trade": a["closed"][0]["exit_time"] if a["closed"] else None})
+        except Exception as e:
+            errors.append(f"[{v}] arkistoidun vaiheen lokeja ei saatu: {e}")
     syms = sorted({p["symbol"] for a in accts for p in a["open"]} | set(SYMBOLS))
     return {
         "generated": now, "bot_ok": bot_ok, "errors": errors,
-        "test_start": ms(TEST_START), "test_end": ms(TEST_END),
+        "test_start": min((a["test_start"] for a in accts), default=ms(TEST_START)),
+        "test_end": max((a["test_end"] for a in accts), default=ms(TEST_END)),
+        "archived": archived,
         "kraken_last": max((tickers[s]["last_time"] or 0 for s in syms if s in tickers), default=None),
         "prices": {s: tickers.get(s, {}).get("mark") for s in syms},
         "accounts": accts,
