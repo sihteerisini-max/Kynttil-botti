@@ -106,3 +106,18 @@ class TestKorjaukset(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPaatossaanto(unittest.TestCase):
+    def test_alle_kolme_markkinaa_avoin(self):
+        # vahva ja johdonmukainen tulos, mutta vain 1 markkina täyttää kattavuuden -> avoin
+        v = aj.paatos(900, 60, 0.001, 0.1, 0.1, 0.1, 1, 0, 1)
+        self.assertTrue(v.startswith("KOKONAISPÄÄTÖS AVOIN"))
+        self.assertTrue(aj.paatos(900, 60, 0.001, -0.1, -0.1, -0.1, 0, 2, 2).startswith("KOKONAISPÄÄTÖS AVOIN"))
+
+    def test_kolme_markkinaa_normaali_saanto(self):
+        self.assertEqual(aj.paatos(900, 60, 0.001, 0.1, 0.1, 0.1, 3, 0, 3), "AJOITUSETU OSOITETTU (ennen kuluja)")
+        self.assertEqual(aj.paatos(900, 60, 0.001, -0.1, -0.1, -0.1, 0, 3, 5), "SIGNAALIT SATTUMAA HUONOMPIA")
+        self.assertTrue(aj.paatos(900, 60, 0.001, 0.1, 0.1, 0.1, 2, 1, 5).startswith("TILASTOLLINEN ERO"))
+        self.assertTrue(aj.paatos(100, 60, 0.001, 0.1, 0.1, 0.1, 3, 0, 5).startswith("AINEISTO EI RIITÄ"))
+        self.assertEqual(aj.paatos(900, 60, 0.3, 0.1, 0.1, 0.1, 3, 0, 5), "EI NÄYTTÖÄ AJOITUSEDUSTA")

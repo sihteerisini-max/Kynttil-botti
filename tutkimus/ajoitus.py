@@ -190,6 +190,27 @@ def bh(ps: dict) -> dict:
     return out
 
 
+MIN_COINS = 3   # "vähintään 3/5 markkinalla" – vaatii vähintään 3 kattavuusehdon täyttävää markkinaa
+
+
+def paatos(n, nd, p_holm, m, h1m, h2m, pos_coins, neg_coins, n_mukana) -> str:
+    """Ennakkoon lukittu päätössääntö (lisäys 1.10.2026 ennen toistojaksoa: jos alle 3 markkinaa
+    täyttää kattavuusehdon, 3/5-ehto ei ole arvioitavissa -> kokonaispäätös jää avoimeksi)."""
+    if n_mukana < MIN_COINS:
+        return (f"KOKONAISPÄÄTÖS AVOIN (kattavuusehdon täyttäviä markkinoita {n_mukana} < {MIN_COINS}; "
+                "3/5-ehtoa ei voi arvioida – markkinakohtaiset tulokset raportoidaan erikseen, eivät ole päätös)")
+    if n < 300 or nd < 14:
+        return f"AINEISTO EI RIITÄ (n = {n}, päiviä {nd}; vaaditaan ≥ 300 ja ≥ 14)"
+    halves = h1m is not None and h2m is not None
+    if p_holm < ALPHA and m > 0 and halves and h1m > 0 and h2m > 0 and pos_coins >= MIN_COINS:
+        return "AJOITUSETU OSOITETTU (ennen kuluja)"
+    if p_holm < ALPHA and m < 0 and halves and h1m < 0 and h2m < 0 and neg_coins >= MIN_COINS:
+        return "SIGNAALIT SATTUMAA HUONOMPIA"
+    if p_holm < ALPHA:
+        return "TILASTOLLINEN ERO, MUTTA EI JOHDONMUKAINEN (puoliskot tai markkinat ristiriidassa) – ei osoitettu"
+    return "EI NÄYTTÖÄ AJOITUSEDUSTA"
+
+
 # ---------------------------------------------------------------- pääohjelma
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Vaihe 1: signaalien ajoitus vs. satunnaisvertailu (ilman kuluja)")
@@ -281,7 +302,10 @@ def main(argv=None) -> None:
         L.append(f"| {typ} | {n} | {nd} | {sm:+.4f} | {cm:+.4f} | **{m:+.4f}** | {lo:+.4f} … {hi:+.4f} | {p:.4f} | {ph.get(typ, 1):.4f} |")
 
     # ---- päätössäännöt (lukittu)
+    n_mukana = sum(1 for s, (cv, n_, f0, f1) in cover.items()
+                   if cv >= MIN_COVERAGE and f0 is not None and f0 <= t0 - DAY)
     L.append("\n## Päätös (ennakkoon lukittu sääntö)\n")
+    L.append(f"Kattavuusehdon täyttäviä markkinoita: **{n_mukana}/{len(cover)}** (vaaditaan ≥ {MIN_COINS}).\n")
     for typ, (m, lo, hi, p, n, nd, sel) in prim.items():
         days = sorted({r["paiva"] for r in sel})
         half = days[len(days) // 2] if days else 0
@@ -293,18 +317,19 @@ def main(argv=None) -> None:
                 coins[r["markkina"]].append(r["k1_pisteet"] - r["k1_vertailu_ka"])
         pos_coins = sum(1 for v in coins.values() if v and st.mean(v) > 0)
         neg_coins = sum(1 for v in coins.values() if v and st.mean(v) < 0)
-        if n < 300 or nd < 14:
-            verdict = f"AINEISTO EI RIITÄ (n = {n}, päiviä {nd}; vaaditaan ≥ 300 ja ≥ 14)"
-        elif ph.get(typ, 1) < ALPHA and m > 0 and h1 and h2 and st.mean(h1) > 0 and st.mean(h2) > 0 and pos_coins >= 3:
-            verdict = "AJOITUSETU OSOITETTU (ennen kuluja)"
-        elif ph.get(typ, 1) < ALPHA and m < 0 and h1 and h2 and st.mean(h1) < 0 and st.mean(h2) < 0 and neg_coins >= 3:
-            verdict = "SIGNAALIT SATTUMAA HUONOMPIA"
-        elif ph.get(typ, 1) < ALPHA:
-            verdict = "TILASTOLLINEN ERO, MUTTA EI JOHDONMUKAINEN (puoliskot tai markkinat ristiriidassa) – ei osoitettu"
-        else:
-            verdict = "EI NÄYTTÖÄ AJOITUSEDUSTA"
+        verdict = paatos(n, nd, ph.get(typ, 1), m, st.mean(h1) if h1 else None, st.mean(h2) if h2 else None,
+                         pos_coins, neg_coins, n_mukana)
         L.append(f"* **{typ}**: {verdict}. Puoliskot {st.mean(h1) if h1 else float('nan'):+.4f} / "
                  f"{st.mean(h2) if h2 else float('nan'):+.4f}; markkinoita, joissa ero > 0: {pos_coins}/{len(coins)}.")
+
+    # ---- markkinakohtaiset tulokset (raportoidaan aina erikseen; eivät ole kokonaispäätös)
+    L.append("\n## Markkinakohtaiset tulokset (ensisijainen mittari, erikseen – ei kokonaispäätös)\n")
+    L.append("| Tyyppi | Markkina | Signaaleja | Päiviä | Ero | 95 % LV | p (korjaamaton) |\n|---|---|---|---|---|---|---|")
+    rc = random.Random(SEED + 2)
+    for typ, (_m, _lo, _hi, _p, _n, _nd, sel) in prim.items():
+        for sym in sorted({r["markkina"] for r in sel}):
+            (m, lo, hi, p), n, nd = diff_stat([r for r in sel if r["markkina"] == sym], "k1_pisteet", "k1_vertailu_ka", rc)
+            L.append(f"| {typ} | {sym} | {n} | {nd} | {m:+.4f} | {lo:+.4f} … {hi:+.4f} | {p:.4f} |")
 
     # ---- täydentävät (eksploratiiviset, BH-korjaus)
     L.append("\n## Täydentävät mittarit (eksploratiivisia, Benjamini–Hochberg)\n")

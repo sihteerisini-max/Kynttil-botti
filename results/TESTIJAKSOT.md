@@ -37,3 +37,13 @@ käynnistyi. Jakso kesti 15:21–17:39 UTC, ja markkinavaihto oli 17:10.
 * Avoimia positioita ei jäänyt. Aineisto on liian pieni tulkittavaksi. Tila- ja
 lokitiedostot säilyvät Volumessa, eikä niitä yhdistetä ajoitustestiin.
 
+
+## Vaihe 1 – toistojakso (ensisijainen vahvistava ajoitustesti), lukittu 1.10.2026
+
+* Jakso: **2.10.2026 00:00 UTC (03:00 EEST) – 30.10.2026 00:00 UTC (02:00 EET)**.
+* Lämmittely alkaa 1.10.2026 00:00 UTC.
+* Signaalisäännöt, skripti ja päätössääntö ovat samat (`docs/VAIHE1_AJOITUSTUTKIMUS.md`, luku 11).
+  Lisäys ennen jaksoa: jos alle 3 markkinaa täyttää kattavuusehdon, kokonaispäätös on avoin.
+* Paperibotin ajoitustesti 1 jatkuu ennallaan, eikä sen tuloksia yhdistetä tähän tutkimukseen.
+* Seurantapalvelu kerää jakson 1 min kynttilät ja tarkistaa kauppattomat minuutit
+  (`seuranta/keruu.py`, Volume `/data/keruu`).

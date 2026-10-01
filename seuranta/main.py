@@ -41,6 +41,7 @@ RULES = {
     "aj1-jatko": dict(min_r_to_cost=0.0),
 }
 HERE = os.path.dirname(os.path.abspath(__file__))
+RECORD_DIR = os.environ.get("RECORD_DIR", "")      # tiedonkeruu (seuranta/keruu.py), esim. /data/keruu
 ARCHIVED = [v.strip() for v in os.environ.get("ARCHIVED", "").split(",") if v.strip()]
 LABELS = {
     "aj1-kaanto": {"short": "K", "name": "Kääntyminen", "desc": "T2-kääntymiskuviot · tavoite 1 R, stop 1 R, aikaraja 15 min · ei kulusuodatinta"},
@@ -613,6 +614,25 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/":
             with open(os.path.join(HERE, "sivu.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if u.path == "/keruu" or u.path.startswith("/keruu/"):
+            if not RECORD_DIR:
+                return self._send(404, b"keruu ei kaytossa", "text/plain")
+            rel = u.path[len("/keruu"):].lstrip("/")
+            root = os.path.realpath(RECORD_DIR)
+            target = os.path.realpath(os.path.join(root, rel))
+            if not target.startswith(root):
+                return self._send(403, b"", "text/plain")
+            if os.path.isdir(target):
+                lines = []
+                for dp, _dn, fn in os.walk(target):
+                    for x in sorted(fn):
+                        fp = os.path.join(dp, x)
+                        lines.append(f"{os.path.relpath(fp, root)}\t{os.path.getsize(fp)}")
+                return self._send(200, "\n".join(sorted(lines)).encode(), "text/plain; charset=utf-8")
+            if os.path.isfile(target):
+                with open(target, "rb") as f:
+                    return self._send(200, f.read(), "text/plain; charset=utf-8")
+            return self._send(404, b"", "text/plain")
         if u.path == "/kaaviot.js":
             with open(os.path.join(HERE, "kaaviot.js"), "rb") as f:
                 return self._send(200, f.read(), "text/javascript; charset=utf-8")
@@ -640,6 +660,9 @@ def main():
     print(f"Seuranta käynnissä portissa {port}; botti {BOT_URL}; versiot {', '.join(VERSIONS)}", flush=True)
     if not TOKEN:
         print("VAROITUS: LOG_TOKEN puuttuu – kaikki pyynnöt estetään.", flush=True)
+    if RECORD_DIR:
+        from keruu import Keruu
+        Keruu(RECORD_DIR, SYMBOLS, http_get, log=lambda m: print(m, flush=True)).kaynnista()
     ThreadingHTTPServer(("0.0.0.0", port), H).serve_forever()
 
 

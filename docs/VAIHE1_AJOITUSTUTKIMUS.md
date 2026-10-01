@@ -81,6 +81,12 @@ lisää. Satunnaisuuden siemen on lukittu (20261001).
 | Holm-p < 0,05, mutta puoliskot tai markkinat ristiriidassa | EI OSOITETTU (epäjohdonmukainen) |
 | muuten | EI NÄYTTÖÄ AJOITUSEDUSTA |
 
+**Lisäys 1.10.2026 (ennen toistojakson alkua, ennen uusia tuloksia):** ehto "D > 0 vähintään 3/5
+markkinalla" säilyy. Jos **alle 3 markkinaa** täyttää kattavuusehdon, ehtoa ei voi arvioida, ja
+**kokonaispäätös jää AVOIMEKSI** riippumatta p-arvosta. Markkinakohtaiset tulokset raportoidaan silloin
+erikseen omana taulukkonaan, eikä niistä tehdä kokonaispäätöstä. Taulukko tulostetaan aina
+(`paatos()` ja `tests/test_tutkimus_ajoitus.py::TestPaatossaanto`).
+
 **Tulkinta-apu:** D = +0,10 vastaa suunnilleen 55 %:n tavoiteosuutta 50 %:n sijaan symmetrisillä
 rajoilla.
 
@@ -101,7 +107,7 @@ rajoilla.
 |---|---|---|
 | **Kehitys** | 22.9.2026 18:43 – 2.10.2026 00:00 (jakso A, sarjojen B/C data, ajoitustesti 1:n live-kaupat) | Vain skriptin testaukseen. Jo nähty, ei näyttöä. |
 | **ARVIOINTI (ensisijainen)** | **15.7.2026 00:00 – 15.9.2026 00:00** (62 vrk), lisäksi 14.7. lämmittelyyn | Ei ole käytetty sääntöjen, rajojen tai markkinoiden valintaan, eikä signaaleja ole katsottu. |
-| Toisto (myöhemmin) | 2.10.2026 00:00 – 30.10.2026 00:00 | Raportoidaan erikseen, jos ensisijainen tulos osoittaa etua. |
+| **TOISTO (ensisijainen vahvistava testi, valittu 1.10.2026)** | **2.10.2026 00:00 – 30.10.2026 00:00** | Ks. luku 11. Valittu ennen jakson alkua; jakson dataa ei ole olemassa valintahetkellä. |
 
 * Arviointiaineistoa ei ole ladattu ennen lukitusta.
 * Markkina jätetään pois vain ennalta määritellyn kattavuussäännön perusteella: kauppoja alle 95 %
@@ -150,3 +156,85 @@ päättynyt stoppiin.
   mediaaneista. Kaupoittain lasketut luvut ovat 10/16 ja noin 80 %.
 * **Yleistys:** väite "mahdoton" koskee nykyistä kulumallia (taker molemmissa päissä, ½ spread ja
   liukuma) ja tämän otoksen R-jakaumaa. Se ei ole väite signaalien ajoituksesta.
+
+## 11. TOISTOJAKSO – ensisijainen vahvistava testi (lukittu 1.10.2026)
+
+### 11.1 Jakso ja aikavyöhykkeet
+
+| | UTC | Helsinki |
+|---|---|---|
+| Lämmittely (ei signaaleja) alkaa | 1.10.2026 00:00 | 1.10.2026 03:00 EEST (UTC+3) |
+| **Testi alkaa** (ensimmäinen mukaan luettava signaalikynttilä) | **2.10.2026 00:00:00** | **2.10.2026 03:00 EEST (UTC+3)** |
+| **Testi päättyy** (viimeinen signaalikynttilä alkaa 29.10. klo 23:59 UTC) | **30.10.2026 00:00:00** | **30.10.2026 02:00 EET (UTC+2)** |
+| Jälkidata lopputuloksia varten | 30.10.2026 00:00 – 01:00 | 02:00 – 03:00 EET |
+
+Suomen kesäaika päättyy 25.10.2026, joten Helsingin ja UTC:n ero muuttuu jakson aikana. Ratkaiseva
+on **UTC**. Jakso on 28 vrk.
+
+### 11.2 Mikä on lukittu
+
+* Signaalisäännöt, skripti, parametrit, siemen (20261001), kattavuusehto (≥ 95 % ja ≥ 1 vrk
+  historiaa) ja päätössääntö luvun 5 lisäyksineen ovat samat kuin arviointiaineistossa.
+* **Markkinat:** PF_SUIUSD, PF_ZECUSD, PF_XRPUSD, PF_DOGEUSD ja PF_SOLUSD.
+* **Arviointiaineiston SOL-tulos ei muuta mitään.** Signaalisääntöjä ei muuteta, J-signaalin suuntaa
+  ei käännetä eikä parametreja optimoida. Toisto testaa samat kaksi hypoteesia (K ja J) samalla
+  Holm-korjauksella.
+* Jälkidata (luku 11.1) lisätään vain, jotta jakson viimeisten signaalien 15 minuutin lopputulos on
+  laskettavissa. Signaalit rajataan edelleen välille [alku, loppu).
+
+### 11.3 Signaalien tallennus
+
+Analyysi tuottaa **kaikki** signaalit uudelleen kynttilädatasta botin omalla koodilla. Avaukset on
+estetty, joten tappiorajat, 4 tappion tauko, 10 %:n pudotuspysäytys, positiorajat ja botin
+uudelleenkäynnistykset eivät vaikuta signaaleihin. Tämä on ensisijainen signaaliaineisto.
+Paperibotin oma loki (`open`/`skipped` syineen) on toissijainen. Se kirjaa myös tappiorajan takia
+ohitetut signaalit, mutta ei uudelleenkäynnistyksen jälkeisen kiinnikurontajakson signaaleja.
+
+### 11.4 Puuttuvat minuutit: kaupankäynnin puute vai haku- tai tallennusvirhe?
+
+Arviointiaineistossa vain SOL täytti 95 %:n kattavuuden. Ennen toistojaksoa tarkistettiin, mistä
+nollavolyymin minuutit johtuvat:
+
+1. **Uudelleenhaku.** Neljä otospäivää haettiin Krakenilta uudelleen: SOL 19.8., ZEC 31.7., SUI 1.9.
+   ja DOGE 27.8. Nollaminuutit olivat täsmälleen samat kuin tallennetussa datassa (49, 390, 212 ja
+   118 kpl). Tallennus ei siis ole hävittänyt mitään.
+2. **Rajapinnan oma esitys.** Kraken palauttaa kauppattomalle minuutille tasaisen kynttilän: o = h =
+   l = c, joka on edellinen päätöskurssi, ja volyymi 0. Tällainen kynttilä ei ole puuttuva rivi vaan
+   pörssin vastaus "ei kauppoja".
+3. **Volyymien täsmäytys.** 1 minuutin volyymien summat täsmäävät 5 minuutin kynttilöiden volyymeihin
+   (vain jakson rajalla yksi rajaero). Jos 1 minuutin haku olisi pudottanut kauppoja, 5 minuutin
+   volyymi olisi suurempi.
+4. **Hinta ei liiku.** Nollaminuutin jälkeinen avaus jatkuu samasta hinnasta. Piilossa olevia
+   hintaliikkeitä ei ole.
+5. **Rakenne.** Aukot ovat enimmäkseen yksittäisiä minuutteja (mediaanipituus 1). Ne ovat hajallaan
+   ja vaihtelevat vuorokaudenajan mukaan, ja hiljaisina tunteina niitä on enemmän. Tämä on
+   epälikvidin markkinan tunnusmerkki, ei katkenneen haun.
+6. **Huoltokatkot erotetaan.** Kaikilla viidellä markkinalla on yhtäaikaiset aukot viikoittain noin
+   klo 07:01 UTC, ja ne kestävät 9–41 min (esim. 27.7., 6.8., 13.8., 20.8., 27.8., 3.9. ja 10.9.).
+   Ne ovat pörssin huoltoikkunoita. Lisäksi yhteisiä yksittäisiä minuutteja oli 86.
+7. **Reaaliaikainen varmistus toistojaksolla.** Krakenin kauppahistoria-rajapinta kattaa vain
+   tuoreen ajan, joten vanhoja minuutteja ei voi sillä tarkistaa jälkikäteen. Seurantapalvelun
+   tiedonkeruu (`seuranta/keruu.py`) toimii näin:
+   * Se tallentaa jokaisen 1 minuutin kynttilän noin 2 minuuttia sulkeutumisen jälkeen.
+   * Jokaiselle nollavolyymin minuutille se hakee heti kauppahistorian kyseisen minuutin lopusta
+     taaksepäin ja kirjaa minuutin kauppojen määrän (`nollaminuutit.csv`).
+     * 0 kauppaa: **aito kauppaton minuutti**.
+     * Yli 0 kauppaa: **datavirhe**, joka raportoidaan.
+   * Kerätyt kynttilät verrataan jakson jälkeen ladattuun aineistoon minuutti minuutilta. Ero
+     tarkoittaa haku- tai tallennusvirhettä.
+
+**Johtopäätös:** arviointiaineiston puuttuvat minuutit ovat aitoja kauppattomia minuutteja ja
+pörssin huoltokatkoja, eivät haku- tai tallennusvirheitä. Kattavuussääntöä ei muuteta. Toistojaksolla
+voi siksi hyvin käydä niin, että alle 3 markkinaa täyttää ehdon, jolloin kokonaispäätös jää
+avoimeksi (luku 5).
+
+### 11.5 Ajo-ohjeet jakson jälkeen (aikaisintaan 30.10.2026 klo 01:05 UTC = 03:05 EET)
+
+```
+python -m kynttilatulkki.lataa --start 2026-10-01T00:00 --end 2026-10-30T01:00 --symbols PF_SUIUSD,PF_ZECUSD,PF_XRPUSD,PF_DOGEUSD,PF_SOLUSD
+python -m tutkimus.ajoitus --data-glob "data/PF_*_2026-10-01T0000_2026-10-30T0100.csv" --alku 2026-10-02T00:00 --loppu 2026-10-30T00:00 --tulos tutkimus/tulokset/toisto --aineisto TOISTO
+```
+
+Tulokset: `tutkimus/tulokset/toisto_raportti.md` ja `tutkimus/tulokset/toisto_signaalit.csv`.
+Lisäksi verrataan seurantapalvelun keruuta (`/keruu`) ladattuun dataan ja raportoidaan
+`nollaminuutit.csv`:n tarkistukset.
