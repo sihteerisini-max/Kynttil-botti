@@ -614,6 +614,15 @@ class H(BaseHTTPRequestHandler):
         if u.path == "/":
             with open(os.path.join(HERE, "sivu.html"), "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if u.path == "/api/toisto":
+            if not RECORD_DIR:
+                return self._send(200, b'{"kaytossa": false}', "application/json")
+            try:
+                from keruu import yhteenveto, TOISTO_MARKKINAT
+                data = yhteenveto(RECORD_DIR, TOISTO_MARKKINAT)
+            except Exception as e:
+                return self._send(500, json.dumps({"error": str(e)}).encode(), "application/json")
+            return self._send(200, json.dumps(data, ensure_ascii=False).encode(), "application/json; charset=utf-8")
         if u.path == "/keruu" or u.path.startswith("/keruu/"):
             if not RECORD_DIR:
                 return self._send(404, b"keruu ei kaytossa", "text/plain")
@@ -661,8 +670,8 @@ def main():
     if not TOKEN:
         print("VAROITUS: LOG_TOKEN puuttuu – kaikki pyynnöt estetään.", flush=True)
     if RECORD_DIR:
-        from keruu import Keruu
-        Keruu(RECORD_DIR, SYMBOLS, http_get, log=lambda m: print(m, flush=True)).kaynnista()
+        from keruu import Keruu, TOISTO_MARKKINAT
+        Keruu(RECORD_DIR, sorted(set(SYMBOLS) | set(TOISTO_MARKKINAT)), http_get, log=lambda m: print(m, flush=True)).kaynnista()
     ThreadingHTTPServer(("0.0.0.0", port), H).serve_forever()
 
 

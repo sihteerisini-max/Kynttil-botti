@@ -115,6 +115,9 @@ tr:last-child td { border-bottom: 0; }
 @media (max-width: 520px) { .kc-dl { grid-template-columns: 1fr; } .kc-dl dd { margin-bottom: 4px; } }
 .kc-close { margin-top: 8px; font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; }
 .side-long { color: var(--good); font-weight: 600; } .side-short { color: var(--bad); font-weight: 600; }
+.bar { height: 10px; border-radius: 5px; background: var(--grid); overflow: hidden; margin: 8px 0 4px; }
+.bar > div { height: 100%; background: var(--s1); }
+.ok { color: var(--good); font-weight: 600; } .no { color: var(--bad); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -123,6 +126,11 @@ tr:last-child td { border-bottom: 0; }
   <div class="paper"><b>PAPERIKAUPPAA.</b> Tilit ovat simuloituja (aloituspääoma 10 000 USD kummallakin). Botti ei lähetä oikeita toimeksiantoja eikä käytä oikeaa rahaa. Tämä sivu vain lukee botin lokeja eikä voi muuttaa mitään.</div>
   <div class="meta" id="meta">Ladataan…</div>
   <div id="alerts"></div>
+
+  <div class="card" id="toisto" style="margin-top:16px">
+    <h2>Vaihe 1 – toistojakso (ajoitustutkimus)</h2>
+    <div class="empty">Ladataan…</div>
+  </div>
 
   <div class="card kc-card">
     <h2>Kynttiläkaaviot ja paperikaupat (1 min)</h2>
@@ -303,6 +311,53 @@ async function load() {
 }
 load();
 setInterval(load, 30000);
+
+const pct1 = x => x == null ? "–" : (x * 100).toLocaleString("fi-FI", {minimumFractionDigits: 1, maximumFractionDigits: 1}) + " %";
+const fmtTz = t => new Intl.DateTimeFormat("fi-FI", {timeZone: tz, day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short"}).format(new Date(t));
+const fmtUtc = t => new Date(t).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+function dur(ms) { const m = Math.max(0, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+  return ((d ? d + " vrk " : "") + h + " h" + (d ? "" : " " + (m % 60) + " min")); }
+function renderToisto(d) {
+  const el = document.getElementById("toisto");
+  if (d.kaytossa === false) { el.innerHTML = "<h2>Vaihe 1 – toistojakso</h2><div class='empty'>Tiedonkeruu ei ole käytössä.</div>"; return; }
+  const total = d.loppu - d.alku, done = Math.min(Math.max(d.nyt - d.alku, 0), total);
+  let tila;
+  if (d.nyt < d.alku) tila = `<b>Ei vielä alkanut.</b> Alkaa ${dur(d.alku - d.nyt)} päästä. Lämmittelydataa kerätään jo.`;
+  else if (d.nyt < d.loppu) tila = `<b>Käynnissä: päivä ${Math.floor(done / 864e5) + 1}/28.</b> Jäljellä ${dur(d.loppu - d.nyt)}.`;
+  else tila = "<b>Jakso on päättynyt.</b> Analyysi ajetaan lukituilla asetuksilla, ja tulokset raportoidaan erikseen.";
+  const okAge = d.viimeisin_ok ? d.nyt - d.viimeisin_ok : null;
+  const keruuOk = okAge != null && okAge < 5 * 60e3;
+  const nIn = d.markkinat.filter(m => m.kattavuus != null && m.kattavuus >= d.kattavuusraja).length;
+  const rows = d.markkinat.map(m => {
+    const ok = m.kattavuus != null && m.kattavuus >= d.kattavuusraja;
+    return `<tr><td class="l">${esc(m.symboli.replace("PF_", "").replace("USD", ""))}</td>
+      <td>${m.minuutteja.toLocaleString("fi-FI")} / ${m.odotettu.toLocaleString("fi-FI")}</td>
+      <td class="${m.puuttuu ? "no" : ""}">${m.puuttuu}</td>
+      <td>${m.minuutteja ? `<span class="${ok ? "ok" : "no"}">${pct1(m.kattavuus)}</span>` : "–"}</td>
+      <td>${m.nolla_tarkistettu}</td><td class="${m.nolla_kauppoja_loytyi ? "no" : ""}">${m.nolla_kauppoja_loytyi}</td>
+      <td>${m.viimeisin ? fmtT(m.viimeisin) : "–"}</td></tr>`; }).join("");
+  el.innerHTML = `<h2>Vaihe 1 – toistojakso (ajoitustutkimus)</h2>
+    <div class="meta" style="margin-top:4px"><span>Alkaa ${fmtUtc(d.alku)} (${fmtTz(d.alku)})</span><span>Päättyy ${fmtUtc(d.loppu)} (${fmtTz(d.loppu)})</span></div>
+    <div class="bar"><div style="width:${(done / total * 100).toFixed(2)}%"></div></div>
+    <div>${tila}</div>
+    <div class="status">Tiedonkeruu: ${keruuOk ? `<span class="ok">toimii</span>` : `<span class="no">ei päivity</span>`}
+      · viimeisin onnistunut kierros ${d.viimeisin_ok ? fmtTs(d.viimeisin_ok) : "–"} · kierroksia ${d.kierroksia ?? "–"}
+      ${d.virheet.length ? `<div class="sub neg">Viimeisimmät virheet: ${d.virheet.map(v => fmtTs(v.t) + " " + esc(v.e)).join("; ")}</div>` : ""}</div>
+    ${d.nyt >= d.alku ? `<h3>Datan laatu jakson alusta</h3>
+    <div class="tbl"><table><thead><tr><th class="l">Kolikko</th><th>Minuutteja tallessa / odotettu</th><th>Puuttuu</th><th>Kauppaminuutteja</th><th>Nollamin. tarkistettu</th><th>Niistä kauppoja</th><th>Viimeisin</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tag" style="margin-top:6px">Kolikko on analyysissa mukana, jos kauppaminuutteja on vähintään 95 %. Tällä hetkellä raja täyttyy ${nIn}/5 kolikolla. Jos lopussa alle 3 täyttää rajan, kokonaispäätös jää avoimeksi.
+    "Puuttuu" ja "Niistä kauppoja" ovat datavirheitä, joiden pitää olla 0. Nollaminuutti on minuutti, jolla Krakenissa ei tehty yhtään kauppaa (tarkistetaan pörssin kauppahistoriasta).</div>` : ""}
+    <div class="tag" style="margin-top:6px">Signaalien tuloksia ei näytetä ennen jakson loppua, jotta lukittua testiä ei tarkastella kesken.</div>`;
+}
+async function loadToisto() {
+  try {
+    const r = await fetch(`/api/toisto?token=${encodeURIComponent(TOKEN)}`, {cache: "no-store"});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    renderToisto(await r.json());
+  } catch (e) { document.getElementById("toisto").innerHTML = `<h2>Vaihe 1 – toistojakso</h2><div class="alert">Haku epäonnistui: ${esc(e.message)}</div>`; }
+}
+loadToisto();
+setInterval(loadToisto, 60000);
 (() => { const sc = document.createElement("script"); sc.src = "/kaaviot.js?token=" + encodeURIComponent(TOKEN); document.body.appendChild(sc); })();
 window.addEventListener("resize", () => DATA && drawChart(DATA));
 </script>

@@ -48,3 +48,24 @@ class TestKeruu(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestYhteenveto(unittest.TestCase):
+    def test_kattavuus_puuttuvat_ja_nollatarkistus(self):
+        A = keruu.TOISTO_ALKU
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "kynttilat"))
+            with open(os.path.join(d, "kynttilat", "PF_X.csv"), "w") as f:
+                f.write("open_time,open,high,low,close,volume,haettu_ms\n")
+                f.write(f"{A - 60000},1,1,1,1,5,0\n")              # lämmittely, ei lasketa
+                for k, v in ((0, 5), (1, 0), (3, 2)):              # minuutti 2 puuttuu
+                    f.write(f"{A + k * 60000},1,1,1,1,{v},0\n")
+            with open(os.path.join(d, "nollaminuutit.csv"), "w") as f:
+                f.write("symboli,open_time,kauppoja_minuutilla,historia_n,tarkistettu_ms\n")
+                f.write(f"PF_X,{A + 60000},0,100,0\n")
+            y = keruu.yhteenveto(d, ["PF_X", "PF_Y"], now_ms=A + 10 * 60000)
+            x = y["markkinat"][0]
+            self.assertEqual((x["minuutteja"], x["odotettu"], x["puuttuu"], x["kauppaminuutteja"]), (3, 4, 1, 2))
+            self.assertAlmostEqual(x["kattavuus"], 2 / 3)
+            self.assertEqual((x["nolla_tarkistettu"], x["nolla_kauppoja_loytyi"]), (1, 0))
+            self.assertIsNone(y["markkinat"][1]["kattavuus"])

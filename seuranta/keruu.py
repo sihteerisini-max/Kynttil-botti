@@ -136,3 +136,71 @@ class Keruu:
                 time.sleep(60 - time.time() % 60 + 20)      # noin 20 s minuutin vaihteen jälkeen
         threading.Thread(target=loop, daemon=True).start()
         self.log(f"Tiedonkeruu käynnissä: {self.root} ({', '.join(self.symbols)})")
+
+
+# ---------------------------------------------------------------- etenemisnäkymä (vain keruun laatu, ei tuloksia)
+TOISTO_ALKU = 1_790_899_200_000   # 2.10.2026 00:00 UTC
+TOISTO_LOPPU = 1_793_318_400_000  # 30.10.2026 00:00 UTC
+TOISTO_MARKKINAT = ["PF_SUIUSD", "PF_ZECUSD", "PF_XRPUSD", "PF_DOGEUSD", "PF_SOLUSD"]   # lukittu tutkimussuunnitelmassa
+_cache: dict = {}
+
+
+def yhteenveto(root: str, symbols: list[str], alku: int = TOISTO_ALKU, loppu: int = TOISTO_LOPPU,
+               now_ms: int | None = None) -> dict:
+    """Toistojakson etenemisen yhteenveto. Ei laske signaaleja eikä lopputuloksia (testiä ei kurkita)."""
+    now = now_ms or int(time.time() * 1000)
+    key = (root, now // 60_000)
+    if now_ms is None and key in _cache:
+        return _cache[key]
+    tila = {}
+    try:
+        with open(os.path.join(root, "keruu_tila.json"), encoding="utf-8") as f:
+            tila = json.load(f)
+    except Exception:
+        pass
+    zero = {}
+    try:
+        with open(os.path.join(root, "nollaminuutit.csv"), encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if alku <= int(r["open_time"]) < loppu:
+                    z = zero.setdefault(r["symboli"], [0, 0])
+                    z[0] += 1
+                    z[1] += 1 if int(r["kauppoja_minuutilla"]) > 0 else 0
+    except Exception:
+        pass
+    hi = min(now, loppu)
+    expected = max(0, (hi - alku) // MIN) if now > alku else 0
+    rows = []
+    for s in symbols:
+        n = traded = 0
+        last = None
+        seen = set()
+        try:
+            with open(os.path.join(root, "kynttilat", f"{s}.csv"), encoding="utf-8") as f:
+                for line in f:
+                    if not line[:1].isdigit():
+                        continue
+                    p = line.split(",")
+                    t = int(p[0])
+                    last = t if last is None or t > last else last
+                    if alku <= t < loppu and t not in seen:
+                        seen.add(t)
+                        n += 1
+                        traded += 1 if float(p[5]) > 0 else 0
+        except FileNotFoundError:
+            pass
+        # odotetut minuutit tähän mennessä = jakson alusta viimeiseen tallennettuun asti
+        upto = min((last + MIN) if last else alku, loppu)
+        exp_s = max(0, (upto - alku) // MIN)
+        z = zero.get(s, [0, 0])
+        rows.append({"symboli": s, "minuutteja": n, "odotettu": exp_s, "puuttuu": max(0, exp_s - n),
+                     "kauppaminuutteja": traded, "kattavuus": (traded / n) if n else None,
+                     "viimeisin": last, "nolla_tarkistettu": z[0], "nolla_kauppoja_loytyi": z[1]})
+    out = {"alku": alku, "loppu": loppu, "nyt": now, "jakson_minuutit": (loppu - alku) // MIN,
+           "kulunut_min": expected, "kierroksia": tila.get("kierroksia"), "viimeisin_ok": tila.get("viimeisin_ok"),
+           "kaynnistetty": tila.get("kaynnistetty"), "virheet": (tila.get("virheet") or [])[-5:],
+           "markkinat": rows, "kattavuusraja": 0.95}
+    if now_ms is None:
+        _cache.clear()
+        _cache[key] = out
+    return out
