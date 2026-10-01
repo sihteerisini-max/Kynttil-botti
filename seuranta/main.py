@@ -436,7 +436,7 @@ def explain_symbol(sym: str, now: int, n: int = 15) -> list[dict]:
                           "volume": round(o.volume_ratio, 2), "signal": not why and side is not None, "why": why})
         near = []
         if not any(it["signal"] for it in items):
-            comp = _components(prev, c, p)
+            comp = _components(prev, c, p) or {}   # None, jos kynttilän vaihteluväli on 0
             for k, nm in TRADE_KEYS.items():
                 x = comp.get(k)
                 if not x or any(it["key"] == k for it in items):
@@ -526,7 +526,13 @@ def build_charts(hours: float) -> dict:
     errors = list(log_errs) + ([_cstate["error"]] if _cstate["error"] else [])
     last = {s: (candles[s][-1][0] if candles[s] else None) for s in SYMBOLS}
     with _clock:
-        explain = {s: explain_symbol(s, now) for s in SYMBOLS}
+        explain = {}
+        for s_ in SYMBOLS:
+            try:
+                explain[s_] = explain_symbol(s_, now)
+            except Exception as e:          # selitysvirhe ei saa estää kaavioita
+                print(f"[{s_}] selitysvirhe: {e!r}", flush=True)
+                explain[s_] = []
     last_evt = {}
     for s in SYMBOLS:
         evs = [x for x in skips if x["symbol"] == s] + \

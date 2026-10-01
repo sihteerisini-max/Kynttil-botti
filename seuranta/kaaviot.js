@@ -332,6 +332,7 @@
     const age = Date.now() - lastOk;
     u.textContent = lastOk ? `Päivitetty ${hms(lastOk)} (10 s välein)` : "Ladataan…";
     const al = [];
+    if (lastErr) al.push(`Kaaviodatan haku epäonnistui: ${lastErr}. Yritetään uudelleen 10 sekunnin välein.`);
     if (DATA) {
       DATA.errors.forEach(e => al.push(e));
       if (DATA.kraken_ok_at && DATA.generated - DATA.kraken_ok_at > 60000) al.push(`Markkinadata ei päivity: viimeisin onnistunut haku Krakenista ${hms(DATA.kraken_ok_at)}.`);
@@ -383,18 +384,19 @@
       <div class="kc-note">Laskettu seurannassa botin omalla koodilla samoista Krakenin kynttilöistä. <b>Kääntyminen (K):</b> vasara, käänteinen vasara, nouseva/laskeva peittävä, tähdenlento tai hirttäytyjä + kuvion vaatima edeltävä trendi, pisteet ≥ 2, volyymi ≥ 1,2×. <b>Jatkuminen (J):</b> trendi (10 min liike ≥ 1,5 keskim. vaihteluväliä), samansuuntainen kynttilä: runko ≥ 50 %, koko ≥ 1,0×, päätös uloimmassa 25 %:ssa ja uuteen 10 min ääripäähän, volyymi ≥ 1,2×. Tappiorajat ja positiorajat tarkistetaan signaalin jälkeen; niiden tulos näkyy botin signaalirivillä.</div></details>`;
   }
 
-  let busy = false;
+  let busy = false, lastErr = null;
   async function load(reset) {
     if (busy) return;
     busy = true;
     try {
       const r = await fetch(`/api/kaaviot?token=${encodeURIComponent(TOKEN)}&tunnit=${hours}`, {cache: "no-store"});
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) { let m = `HTTP ${r.status}`; try { m += " – " + (await r.json()).error; } catch (e) {} throw new Error(m); }
       DATA = await r.json();
       lastOk = Date.now();
+      lastErr = null;
       renderAll(!reset);
     } catch (e) {
-      document.getElementById("kc-alert").innerHTML = `<div class="alert">Kaaviodatan haku epäonnistui: ${esc(e.message)}</div>`;
+      lastErr = e.message;
     } finally {
       busy = false;
       status();
