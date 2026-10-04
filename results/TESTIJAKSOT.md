@@ -47,3 +47,15 @@ lokitiedostot säilyvät Volumessa, eikä niitä yhdistetä ajoitustestiin.
 * Paperibotin ajoitustesti 1 jatkuu ennallaan, eikä sen tuloksia yhdistetä tähän tutkimukseen.
 * Seurantapalvelu kerää jakson 1 min kynttilät ja tarkistaa kauppattomat minuutit
   (`seuranta/keruu.py`, Volume `/data/keruu`).
+
+## Tutkimus 15M (historia, erillinen tutkimus), ajettu 4.10.2026
+
+* **Testijakso:** 1.1.2025–1.7.2026 UTC, 15m-kynttilät. Jaksoa ei ollut käytetty aiemmin.
+* **Markkinavalinta:** valintajakso 1.10.–31.12.2024. Valitut markkinat: XBT, ETH, SOL, DOGE, XRP
+  ja PEPE.
+* **Rajaukset:** botin K- ja J-säännöt ilman muutoksia. Vertailu satunnaisiin hetkiin, seuranta-aika
+  4 h.
+* **Tulos:** EI NÄYTTÖÄ AJOITUSEDUSTA yhdessäkään neljästä ryhmästä. Vaihetta 2 ei ajettu.
+* Suunnitelma: `docs/TUTKIMUS15_SUUNNITELMA.md`. Tulokset: `tutkimus15/tulokset/`.
+* **Käytetty data:** testijakso ja valintajakso ovat nyt käytettyjä. Uusiin hypoteeseihin ne eivät
+  enää kelpaa todisteeksi.
