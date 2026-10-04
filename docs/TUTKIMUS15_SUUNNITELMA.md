@@ -243,3 +243,35 @@ Tämä on kuvaus. Siitä ei tehdä kannattavuuspäätöstä.
    (`tutkimus15/tulokset/raportti.md`, `signaalit.csv`).
 5. **Raportointi:** tulos raportoidaan sellaisenaan, myös epäonnistunut tai epäselvä. Rajoja ei
    säädetä, eikä vaihtoehtoja kokeilla samalla datalla.
+
+## 13. Muutos 1.1 (4.10.2026 klo 07:00 UTC, ennen testijakson datan latausta)
+
+**Mitä tapahtui:**
+* Version 1.0 markkinavalinta (luku 3) ajettiin 4.10.2026 klo 06:48 UTC.
+* Yksikään markkina ei täyttänyt 1m-kattavuusehtoa (≥ 99 % kauppaminuutteja). Esimerkiksi PF_XBTUSD
+  sai 98,63 % ja PF_ETHUSD 96,90 % (`tutkimus15/tulokset/valinta_v1_0.md`).
+* API palautti kaikki minuutit, joten kyse on aidosti kaupattomista minuuteista eikä puuttuvasta
+  datasta.
+* Version 1.0 mukaan tutkimusta ei olisi ajettu.
+
+**Muutos:** luvun 3 kohdat 3–4 korvataan seuraavasti:
+
+3. Kymmenelle likvideimmälle lasketaan valintajakson **15m-kynttilöistä** kauppakynttilöiden
+   osuus (volyymi > 0, odotettu määrä 8 832). 1m-kauppaminuuttien osuus raportoidaan vain
+   tiedoksi.
+4. **Kattavuusehto:** kauppakynttilöitä (15m) on vähintään 99,0 %.
+
+Kohta 5 (kuusi likvideintä, vähintään 4) ja kaikki muut luvut pysyvät ennallaan. Erityisesti
+testijakson kattavuus- ja eheysehdot (luku 4) eivät muutu.
+
+**Perustelu:**
+* Tutkimus käyttää 15m-kynttilöitä. Kattavuus mitataan nyt samalla resoluutiolla kuin
+  analyysissa ja testijakson ehdossa (luku 4).
+* 1m-ehto oli asetettu tuntematta Krakenin futuurien tavanomaista minuuttitason kaupattomuutta.
+* Raja (99 %) ja kaikki muut säännöt ovat ennallaan.
+* **Muutos tehtiin ennen kuin testijakson dataa ladattiin.** Signaaleja tai lopputuloksia ei ollut
+  laskettu, joten muutos ei voi perustua tuloksiin.
+* Valintajakson likviditeettijärjestys oli nähty. Muutos ei kuitenkaan valitse markkinoita
+  nimeltä, vaan sama sääntö koskee kaikkia ehdokkaita.
+
+Raportissa tämä muutos ilmoitetaan poikkeamana alkuperäisestä lukitusta suunnitelmasta.

@@ -147,12 +147,12 @@ class TestValinta(unittest.TestCase):
         self.assertEqual([x["symbol"] for x in valinta.ehdokkaat(inst)], ["PF_XBTUSD"])
 
     def test_valitse(self):
-        rows = [dict(symbol=f"S{k}", mediaani=100 - k, data_ok=True, kauppaminuutit=0.995 if k % 3 else 0.98) for k in range(12)]
-        rows.append(dict(symbol="EI", mediaani=1000, data_ok=False, kauppaminuutit=None))
+        rows = [dict(symbol=f"S{k}", mediaani=100 - k, data_ok=True, kauppakynttilat=0.995 if k % 3 else 0.98) for k in range(12)]
+        rows.append(dict(symbol="EI", mediaani=1000, data_ok=False, kauppakynttilat=None))
         chosen, why = valinta.valitse(rows)
         self.assertEqual(why, "ok")
         self.assertEqual(chosen, ["S1", "S2", "S4", "S5", "S7", "S8"])
-        rows = [dict(symbol=f"S{k}", mediaani=100 - k, data_ok=True, kauppaminuutit=0.5) for k in range(10)]
+        rows = [dict(symbol=f"S{k}", mediaani=100 - k, data_ok=True, kauppakynttilat=0.5) for k in range(10)]
         self.assertNotEqual(valinta.valitse(rows)[1], "ok")
 
 
