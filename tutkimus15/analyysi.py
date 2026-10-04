@@ -42,13 +42,12 @@ def vaadittu(m: int) -> int:
 
 # ---------------------------------------------------------------- signaalit ja A
 def avg_range_before(cs) -> list:
+    """A[i] = 20 edeltävän kynttilän keskimääräinen vaihteluväli, laskettu suoraan summana kuten botin
+    kontekstissa. (Korjaus 4.10.2026: aiempi juokseva summa jätti täysin kaupattomille jaksoille
+    liukulukujäännöksen ~1e-15, jolloin A = 0 -hetkiä ei suljettu pois.)"""
     out = [None] * len(cs)
-    s = 0.0
-    for i, c in enumerate(cs):
-        if i >= AVG:
-            out[i] = s / AVG
-            s -= cs[i - AVG].range
-        s += c.range
+    for i in range(AVG, len(cs)):
+        out[i] = sum(cs[k].range for k in range(i - AVG, i)) / AVG
     return out
 
 

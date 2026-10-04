@@ -191,3 +191,13 @@ class TestVaihe2(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestKaupatonJakso(unittest.TestCase):
+    def test_A_nolla_tasaisella_jaksolla(self):
+        cs = synth15(60, 7, T0)
+        p = cs[29].close
+        cs = cs[:30] + [c(T0 + (30 + k) * S, p, p, p, p, 0.0) for k in range(25)] + cs[55:]
+        A = an.avg_range_before(cs)
+        self.assertEqual(A[50], 0.0)
+        self.assertIsNone(an.outcome(cs, 50, "long", A[50], 1.0))
