@@ -1,0 +1,9 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": { "builder": "RAILPACK", "watchPatterns": ["/tutkimus_k4h/**", "!/tutkimus_k4h/tulokset/**"] },
+  "deploy": {
+    "startCommand": "python -u palvelu.py",
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": "/health"
+  }
+}
